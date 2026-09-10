@@ -1,0 +1,78 @@
+# MoneyPrinterTurbo (API + WebUI) behind Caddy basic auth.
+#
+# - Only Caddy publishes ports; api/webui are reachable solely on the internal network.
+# - Ports bind to 127.0.0.1 by default. Set BIND_ADDR=0.0.0.0 in .env only if you
+#   really need remote access (basic auth still applies; add TLS before doing so).
+# - Secrets are passed as env vars and rendered into config.toml INSIDE the
+#   container at start (orchestrator/render_config.py); they never touch the repo.
+# Prereqs: `make vendor` and `make setup`, and BASIC_AUTH_USER/BASIC_AUTH_HASH in .env.
+name: youtube-automations
+
+x-mpt: &mpt
+  build:
+    context: ./vendor/moneyprinterturbo
+    dockerfile: Dockerfile
+    args:
+      DOCKER_BUILD_MIRROR: ${DOCKER_BUILD_MIRROR:-default}
+      PIP_USE_OFFICIAL: ${PIP_USE_OFFICIAL:-1}
+  image: youtube-automations/moneyprinterturbo:local
+  environment:
+    PEXELS_API_KEY: ${PEXELS_API_KEY:-}
+    LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+    OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    OLLAMA_HOST: ${OLLAMA_HOST:-}
+    OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1}
+    ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY:-}
+    MPT_API_KEY: ${MPT_API_KEY:-}
+  volumes:
+    - ./config/config.toml:/opt/yta/config.template.toml:ro
+    - ./orchestrator/render_config.py:/opt/yta/render_config.py:ro
+    - mpt-storage:/MoneyPrinterTurbo/storage
+  extra_hosts:
+    - "host.docker.internal:host-gateway"   # reach Ollama running on the host
+  networks: [internal]
+  restart: unless-stopped
+
+services:
+  api:
+    <<: *mpt
+    container_name: yta-mpt-api
+    command:
+      - sh
+      - -c
+      - python3 /opt/yta/render_config.py /opt/yta/config.template.toml /MoneyPrinterTurbo/config.toml && exec python3 main.py
+
+  webui:
+    <<: *mpt
+    container_name: yta-mpt-webui
+    command:
+      - sh
+      - -c
+      - >-
+        python3 /opt/yta/render_config.py /opt/yta/config.template.toml /MoneyPrinterTurbo/config.toml &&
+        exec streamlit run ./webui/Main.py --server.address=0.0.0.0 --server.port=8501
+        --browser.serverAddress=127.0.0.1 --browser.gatherUsageStats=False
+        --client.toolbarMode=minimal --logger.hideWelcomeMessage=True --server.showEmailPrompt=False
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: yta-caddy
+    environment:
+      BASIC_AUTH_USER: ${BASIC_AUTH_USER:?set BASIC_AUTH_USER in .env}
+      BASIC_AUTH_HASH: ${BASIC_AUTH_HASH:?set BASIC_AUTH_HASH in .env (make caddy-hash)}
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:8080:8080"
+      - "${BIND_ADDR:-127.0.0.1}:8501:8501"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on: [api, webui]
+    networks: [internal]
+    restart: unless-stopped
+
+volumes:
+  mpt-storage:
+  caddy-data:
+
+networks:
+  internal:
