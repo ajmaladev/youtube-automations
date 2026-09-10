@@ -1,0 +1,36 @@
+# Topic queue - edit by hand.
+#
+# The pipeline never rewrites this file. Progress is tracked in
+# output/queue_state.json (a topic with status "generated" is skipped; delete
+# its entry there to regenerate it).
+#
+# Any key under `defaults` or a topic that is not a VideoRequest field
+# (see orchestrator/models.py) is forwarded verbatim to MoneyPrinterTurbo's
+# POST /api/v1/videos body, e.g. video_clip_duration, font_size, subtitle_position.
+
+defaults:
+  video_aspect: "9:16"                  # "9:16" | "16:9" | "1:1"
+  voice_name: "en-US-JennyNeural-Female" # Edge TTS voice (free). Format: <locale>-<Name>Neural-<Gender>
+  video_language: "en"
+  paragraph_number: 1
+  bgm_type: ""                          # no background music (bundled songs removed)
+  privacy_status: private               # private | unlisted  ("public" is refused)
+  made_for_kids: false
+  category_id: "27"                     # 27 = Education, 22 = People & Blogs, 28 = Science & Tech
+  tags: [shorts]
+
+topics:
+  - id: honeybee-sun-compass
+    subject: "How honeybees use the sun as a compass"
+    # title/description are optional; if omitted, MPT's /api/v1/social-metadata fills them in
+    tags: [shorts, science, bees]
+
+  - id: why-sky-is-blue
+    subject: "Why the sky is blue, explained in 60 seconds"
+    title: "Why Is the Sky Blue? (60-Second Science)"
+    description: "Rayleigh scattering in plain English."
+    tags: [shorts, science, physics]
+
+  - id: paused-example
+    subject: "An example topic that is skipped"
+    enabled: false

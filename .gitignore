@@ -1,0 +1,23 @@
+# --- Vendored upstream (rebuilt via `make vendor`) ---
+vendor/
+
+# --- Secrets / credentials ---
+.env
+.env.*
+!.env.example
+.credentials/
+*.token.json
+client_secret*.json
+
+# --- Rendered config (template is config/config.template.toml) ---
+config/config.toml
+
+# --- Generated media, sidecars, quota ledger, queue state ---
+output/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+*.egg-info/
