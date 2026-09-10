@@ -9,7 +9,7 @@ ALLOWED_PRIVACY = ("private", "unlisted")  # "public" is deliberately not allowe
 
 @dataclass
 class VideoRequest:
-    """One topic from topics/queue.yaml, ready to send to MoneyPrinterTurbo."""
+    """One topic from topics/queue.yaml, ready to send to the video engine."""
 
     topic_id: str
     subject: str
@@ -38,7 +38,7 @@ class VideoRequest:
                 f"privacy_status={self.privacy_status!r} not allowed; use one of {ALLOWED_PRIVACY}"
             )
 
-    def to_mpt_payload(self) -> dict[str, Any]:
+    def to_engine_payload(self) -> dict[str, Any]:
         payload = {
             "video_subject": self.subject,
             "video_aspect": self.video_aspect,

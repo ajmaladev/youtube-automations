@@ -15,10 +15,10 @@ def test_run_daily_dry_run_touches_nothing(settings, caplog):
 
 def test_run_daily_upload_runs_even_if_generate_fails(settings, monkeypatch):
     calls = []
-    monkeypatch.setattr(generate, "run", lambda **k: (_ for _ in ()).throw(RuntimeError("mpt down")))
+    monkeypatch.setattr(generate, "run", lambda **k: (_ for _ in ()).throw(RuntimeError("engine down")))
     monkeypatch.setattr(upload, "run", lambda **k: calls.append(k) or ["vid"])
     summary = scheduler.run_daily(settings=settings)
-    assert summary["uploaded"] == ["vid"] and "mpt down" in summary["errors"][0]
+    assert summary["uploaded"] == ["vid"] and "engine down" in summary["errors"][0]
     assert calls
 
 

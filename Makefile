@@ -1,9 +1,9 @@
 # Usage: make <target> [ARGS="--dry-run"]
 # Requires GNU make + a POSIX shell (Linux/macOS, WSL, or Git Bash on Windows).
 
-MPT_REPO ?= https://github.com/harry0703/MoneyPrinterTurbo.git
-MPT_REF  ?=
-MPT_DIR  := vendor/moneyprinterturbo
+ENGINE_REPO ?= https://github.com/harry0703/MoneyPrinterTurbo.git
+ENGINE_REF  ?=
+ENGINE_DIR  := vendor/video-engine
 PY       := uv run python
 ARGS     ?=
 ENV_TEMPLATE := $(firstword $(wildcard .env.example) config/env.example)
@@ -14,14 +14,14 @@ help:
 	@echo "vendor setup up down logs generate review upload auth daily test caddy-hash"
 	@echo "Pass flags with ARGS, e.g. make daily ARGS=--dry-run"
 
-## Re-clone MoneyPrinterTurbo (no .git, bundled songs removed)
+## Re-clone the video engine (no .git, bundled songs removed)
 vendor:
-	rm -rf $(MPT_DIR)
-	git clone --depth 1 $(if $(MPT_REF),--branch $(MPT_REF),) $(MPT_REPO) $(MPT_DIR)
-	rm -rf $(MPT_DIR)/.git
-	find $(MPT_DIR)/resource/songs -type f -delete
-	cp deploy/songs-README.md $(MPT_DIR)/resource/songs/README.md
-	@echo "Vendored MoneyPrinterTurbo into $(MPT_DIR)"
+	rm -rf $(ENGINE_DIR)
+	git clone --depth 1 $(if $(ENGINE_REF),--branch $(ENGINE_REF),) $(ENGINE_REPO) $(ENGINE_DIR)
+	rm -rf $(ENGINE_DIR)/.git
+	find $(ENGINE_DIR)/resource/songs -type f -delete
+	cp deploy/songs-README.md $(ENGINE_DIR)/resource/songs/README.md
+	@echo "Vendored video engine into $(ENGINE_DIR)"
 
 ## Python env, local dirs, config + .env from templates (never overwrites)
 setup:
@@ -32,7 +32,7 @@ setup:
 	@echo "Now edit .env (see README checklist)."
 
 up:
-	@[ -d $(MPT_DIR) ] || { echo "run 'make vendor' first"; exit 1; }
+	@[ -d $(ENGINE_DIR) ] || { echo "run 'make vendor' first"; exit 1; }
 	@[ -f config/config.toml ] || { echo "run 'make setup' first"; exit 1; }
 	@[ -f .env ] || { echo "run 'make setup' and fill .env first"; exit 1; }
 	docker compose up -d --build

@@ -6,7 +6,7 @@ from orchestrator import generate, review
 
 
 class FakeResp:
-    def __init__(self, status_code=200, body=None, content=b"", method="GET", url="http://mpt"):
+    def __init__(self, status_code=200, body=None, content=b"", method="GET", url="http://engine"):
         self.status_code = status_code
         self._body = body
         self._content = content
@@ -30,7 +30,7 @@ class FakeResp:
 
 
 class FakeSession:
-    """Mimics MPT: POST /api/v1/videos, polling /api/v1/tasks/{id}, /tasks/... download."""
+    """Mimics the video engine: POST /api/v1/videos, polling /api/v1/tasks/{id}, /tasks/... download."""
 
     def __init__(self, task_states):
         self.headers, self.auth, self.calls = {}, None, []
@@ -64,11 +64,11 @@ RUNNING = {"task_id": "abc", "state": 4, "progress": 40}
 
 def client_for(settings, states):
     session = FakeSession(states)
-    return generate.MPTClient(settings, session=session), session
+    return generate.EngineClient(settings, session=session), session
 
 
 def test_client_sends_auth_headers(settings, monkeypatch):
-    monkeypatch.setenv("MPT_API_KEY", "k")
+    monkeypatch.setenv("ENGINE_API_KEY", "k")
     monkeypatch.setenv("BASIC_AUTH_USER", "u")
     monkeypatch.setenv("BASIC_AUTH_PASSWORD", "p")
     from orchestrator import config

@@ -23,8 +23,8 @@ class ConfigError(RuntimeError):
 
 @dataclass(frozen=True)
 class Settings:
-    mpt_base_url: str
-    mpt_api_key: str
+    engine_base_url: str
+    engine_api_key: str
     basic_auth_user: str
     basic_auth_password: str
     pexels_api_key: str
@@ -42,6 +42,16 @@ class Settings:
     daily_generate_count: int
     poll_interval_s: float
     generate_timeout_s: float
+    auto_series: bool
+    story_llm_provider: str
+    story_llm_model: str
+    story_llm_base_url: str
+    story_research_model: str
+    story_allow_unverified: bool
+    groq_api_key: str
+    gemini_api_key: str
+    channel_path: Path
+    history_path: Path
 
     # --- per-stage validation -------------------------------------------------
     def missing_for(self, stage: str) -> list[str]:
@@ -53,8 +63,14 @@ class Settings:
                 missing.append("OPENAI_API_KEY")
             if self.llm_provider == "ollama" and not self.ollama_host:
                 missing.append("OLLAMA_HOST")
-            if not self.mpt_base_url:
-                missing.append("MPT_BASE_URL")
+            if not self.engine_base_url:
+                missing.append("ENGINE_BASE_URL")
+        elif stage == "story":
+            keys = {"groq": ("GROQ_API_KEY", self.groq_api_key),
+                    "gemini": ("GEMINI_API_KEY", self.gemini_api_key),
+                    "openai": ("OPENAI_API_KEY", self.openai_api_key)}
+            if self.story_llm_provider in keys and not keys[self.story_llm_provider][1]:
+                missing.append(keys[self.story_llm_provider][0])
         elif stage == "upload":
             if not self.youtube_client_secrets_path:
                 missing.append("YOUTUBE_CLIENT_SECRETS_PATH")
@@ -107,8 +123,8 @@ def load(env_file: str | os.PathLike | None = None) -> Settings:
         raise ConfigError("YOUTUBE_MAX_UPLOADS_PER_DAY is hard-capped at 5")
 
     return Settings(
-        mpt_base_url=s("MPT_BASE_URL", "http://127.0.0.1:8080").rstrip("/"),
-        mpt_api_key=s("MPT_API_KEY"),
+        engine_base_url=s("ENGINE_BASE_URL", "http://127.0.0.1:8080").rstrip("/"),
+        engine_api_key=s("ENGINE_API_KEY"),
         basic_auth_user=s("BASIC_AUTH_USER"),
         basic_auth_password=s("BASIC_AUTH_PASSWORD"),
         pexels_api_key=s("PEXELS_API_KEY"),
@@ -124,8 +140,18 @@ def load(env_file: str | os.PathLike | None = None) -> Settings:
         daily_quota_units=_int("YOUTUBE_DAILY_QUOTA_UNITS", 10_000),
         max_uploads_per_day=max_uploads,
         daily_generate_count=_int("DAILY_GENERATE_COUNT", 1),
-        poll_interval_s=_float("MPT_POLL_INTERVAL_S", 10.0),
-        generate_timeout_s=_float("MPT_GENERATE_TIMEOUT_S", 1800.0),
+        poll_interval_s=_float("ENGINE_POLL_INTERVAL_S", 10.0),
+        generate_timeout_s=_float("ENGINE_GENERATE_TIMEOUT_S", 1800.0),
+        auto_series=s("AUTO_SERIES", "true").lower() in {"1", "true", "yes", "on"},
+        story_llm_provider=s("STORY_LLM_PROVIDER", "ollama").lower(),
+        story_llm_model=s("STORY_LLM_MODEL"),
+        story_llm_base_url=s("STORY_LLM_BASE_URL"),
+        story_research_model=s("STORY_RESEARCH_MODEL", "openai/gpt-oss-120b"),
+        story_allow_unverified=s("STORY_ALLOW_UNVERIFIED", "false").lower() in {"1", "true", "yes", "on"},
+        groq_api_key=s("GROQ_API_KEY"),
+        gemini_api_key=s("GEMINI_API_KEY"),
+        channel_path=Path(s("CHANNEL_CONFIG_PATH") or REPO_ROOT / "topics" / "channel.yaml"),
+        history_path=Path(s("STORY_HISTORY_PATH") or REPO_ROOT / "topics" / "history.json"),
     )
 
 

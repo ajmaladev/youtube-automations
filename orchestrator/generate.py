@@ -1,6 +1,11 @@
-"""Generate videos through the MoneyPrinterTurbo REST API.
+"""Generate videos through the video engine's REST API.
 
-Flow per topic:
+What gets generated (in this order, up to --count videos):
+  1. unfinished manual topics from topics/queue.yaml
+  2. unfinished episodes of already-planned series (output/series/*.json)
+  3. brand-new series planned by the story LLM when AUTO_SERIES=true (see story.py)
+
+Flow per video:
   POST /api/v1/videos -> task_id
   GET  /api/v1/tasks/{task_id} until state == 1 (complete) or -1 (failed)
   GET  <videos[0]> (e.g. /tasks/<task_id>/final-1.mp4) -> output/pending/<topic_id>.mp4
@@ -20,7 +25,8 @@ from typing import Any, Callable
 import requests
 import yaml
 
-from orchestrator import config, review
+from orchestrator import config, review, story
+from orchestrator.llm import LLMError
 from orchestrator.models import VideoRequest, VideoResult
 
 log = logging.getLogger(__name__)
@@ -34,14 +40,14 @@ class GenerationError(RuntimeError):
     pass
 
 
-class MPTClient:
-    """Thin client for the MoneyPrinterTurbo API (black box, REST only)."""
+class EngineClient:
+    """Thin client for the video engine API (black box, REST only)."""
 
     def __init__(self, settings: config.Settings, session: requests.Session | None = None):
-        self.base = settings.mpt_base_url.rstrip("/")
+        self.base = settings.engine_base_url.rstrip("/")
         self.session = session or requests.Session()
-        if settings.mpt_api_key:
-            self.session.headers["x-api-key"] = settings.mpt_api_key
+        if settings.engine_api_key:
+            self.session.headers["x-api-key"] = settings.engine_api_key
         if settings.basic_auth_user and settings.basic_auth_password:
             self.session.auth = (settings.basic_auth_user, settings.basic_auth_password)
 
@@ -57,7 +63,7 @@ class MPTClient:
             body = {}
         if resp.status_code != 200 or body.get("status", resp.status_code) != 200:
             raise GenerationError(
-                f"MPT {resp.request.method} {resp.url} -> HTTP {resp.status_code}: "
+                f"Engine {resp.request.method} {resp.url} -> HTTP {resp.status_code}: "
                 f"{body.get('message') or resp.text[:300]}"
             )
         return body
@@ -69,7 +75,7 @@ class MPTClient:
         resp = self.session.post(self._url("/api/v1/videos"), json=payload, timeout=60)
         task_id = (self._json(resp).get("data") or {}).get("task_id")
         if not task_id:
-            raise GenerationError("MPT did not return a task_id")
+            raise GenerationError("Engine did not return a task_id")
         return task_id
 
     def get_task(self, task_id: str) -> dict[str, Any]:
@@ -125,6 +131,11 @@ class MPTClient:
 
 # --- topic queue ---------------------------------------------------------------
 
+def load_defaults(path: Path) -> dict[str, Any]:
+    data = (yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}) if Path(path).is_file() else {}
+    return dict(data.get("defaults") or {})
+
+
 def load_queue(path: Path) -> list[VideoRequest]:
     data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
     defaults = data.get("defaults") or {}
@@ -164,21 +175,41 @@ def next_topics(queue: list[VideoRequest], state: dict[str, Any], count: int) ->
     return [r for r in queue if state.get(r.topic_id, {}).get("status") != "generated"][:count]
 
 
+def select_topics(settings: config.Settings, queue: list[VideoRequest], defaults: dict[str, Any],
+                  state: dict[str, Any], count: int, dry_run: bool = False, llm=None) -> list[VideoRequest]:
+    """Manual queue first, then unfinished series episodes, then brand-new series."""
+    todo = next_topics(queue, state, count)
+    if len(todo) < count:
+        todo += story.pending_episodes(settings, state, defaults)[: count - len(todo)]
+    planned = 0
+    while len(todo) < count and settings.auto_series and planned < count:
+        try:
+            new = story.plan_and_save(settings, defaults, dry_run=dry_run, llm=llm)
+        except (story.StoryError, LLMError) as exc:
+            log.error("series planning failed: %s", exc)
+            break
+        if not new:
+            break
+        planned += 1
+        todo += new[: count - len(todo)]  # leftover episodes are picked up by the next run
+    return todo
+
+
 # --- pipeline -------------------------------------------------------------------
 
 def generate_one(
-    req: VideoRequest, settings: config.Settings, client: MPTClient | None, dry_run: bool = False
+    req: VideoRequest, settings: config.Settings, client: EngineClient | None, dry_run: bool = False
 ) -> Path | None:
-    payload = req.to_mpt_payload()
+    payload = req.to_engine_payload()
     if dry_run:
         log.info("DRY-RUN: would POST %s/api/v1/videos with %s",
-                 settings.mpt_base_url, json.dumps(payload, ensure_ascii=False))
+                 settings.engine_base_url, json.dumps(payload, ensure_ascii=False))
         log.info("DRY-RUN: would poll /api/v1/tasks/<id>, download mp4 to %s/%s.mp4 and write sidecar",
                  settings.output_dir / review.PENDING, req.topic_id)
         return None
     assert client is not None
     task_id = client.create_video(payload)
-    log.info("topic %s -> MPT task %s", req.topic_id, task_id)
+    log.info("topic %s -> engine task %s", req.topic_id, task_id)
     task = client.wait_for_task(task_id, settings.poll_interval_s, settings.generate_timeout_s)
     videos = task.get("videos") or []
     if not videos:
@@ -207,22 +238,25 @@ def generate_one(
 
 
 def run(count: int | None = None, topic_id: str | None = None, dry_run: bool = False,
-        settings: config.Settings | None = None, client: MPTClient | None = None) -> list[Path]:
+        settings: config.Settings | None = None, client: EngineClient | None = None,
+        llm=None) -> list[Path]:
     settings = settings or config.load()
     settings.require("generate", dry_run=dry_run)
     queue = load_queue(settings.queue_path)
+    defaults = load_defaults(settings.queue_path)
     state = load_state(settings)
     if topic_id:
-        todo = [r for r in queue if r.topic_id == topic_id]
+        todo = [r for r in [*queue, *story.all_episode_requests(settings, defaults)] if r.topic_id == topic_id]
         if not todo:
-            raise SystemExit(f"topic {topic_id!r} not found in {settings.queue_path}")
+            raise SystemExit(f"topic {topic_id!r} not found in {settings.queue_path} or planned series")
     else:
-        todo = next_topics(queue, state, count or settings.daily_generate_count)
+        todo = select_topics(settings, queue, defaults, state,
+                             count or settings.daily_generate_count, dry_run=dry_run, llm=llm)
     if not todo:
-        log.info("topic queue is empty - nothing to generate")
+        log.info("nothing to generate (queue done, no unfinished episodes, and no new series planned)")
         return []
     if not dry_run and client is None:
-        client = MPTClient(settings)
+        client = EngineClient(settings)
 
     produced = []
     for req in todo:
@@ -245,8 +279,8 @@ def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser(prog="orchestrator.generate", description=__doc__,
                                 formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument("--dry-run", action="store_true", help="log the requests without calling any API")
-    p.add_argument("--count", type=int, help="number of queued topics to generate (default DAILY_GENERATE_COUNT)")
-    p.add_argument("--topic", help="generate one specific topic id")
+    p.add_argument("--count", type=int, help="number of videos to generate (default DAILY_GENERATE_COUNT)")
+    p.add_argument("--topic", help="generate one specific topic or episode id")
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args(argv)
     config.setup_logging(args.verbose)

@@ -1,101 +1,798 @@
-# youtube-automations
+<div align="center">
 
-## Pipeline: MoneyPrinterTurbo → human review → YouTube
+# 🛡️ Plot Armor Facts
 
+### Automated YouTube Shorts: researched stories → narrated videos → your approval → YouTube
+
+<p>
+  <img alt="Python 3.11" src="https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white">
+  <img alt="uv" src="https://img.shields.io/badge/uv-package%20manager-DE5FE9">
+  <img alt="Docker" src="https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white">
+  <img alt="Groq" src="https://img.shields.io/badge/Groq-free%20tier-F55036">
+  <img alt="YouTube" src="https://img.shields.io/badge/YouTube-Shorts-FF0000?logo=youtube&logoColor=white">
+  <img alt="Tests" src="https://img.shields.io/badge/tests-pytest-0A9EDC?logo=pytest&logoColor=white">
+</p>
+
+**Plot Armor Facts** plans a fresh 3-part story series every day (comics lore, superhero science and real-life legends), researches it on the web, writes and fact-checks the scripts, and renders them into vertical videos with voice-over, subtitles and stock footage.
+**Nothing is uploaded until you approve it**, and every upload goes up **private** with the AI-content disclosure switched on.
+
+[Features](#-features) •
+[How it works](#-how-it-works) •
+[Installation](#-installation) •
+[Environment variables](#-environment-variables-env) •
+[Get your keys](#-get-your-keys-step-by-step) •
+[Usage](#-usage) •
+[Troubleshooting](#-troubleshooting)
+
+</div>
+
+---
+
+## 📑 Table of contents
+
+1. [Features](#-features)
+2. [How it works](#-how-it-works)
+3. [Requirements](#-requirements)
+4. [Installation](#-installation)
+5. [Environment variables (.env)](#-environment-variables-env)
+6. [Get your keys, step by step](#-get-your-keys-step-by-step)
+7. [Usage](#-usage)
+8. [Customize your channel](#-customize-your-channel)
+9. [Limits and safety](#-limits-and-safety)
+10. [Troubleshooting](#-troubleshooting)
+11. [Project structure](#-project-structure)
+12. [Developer reference](#-developer-reference)
+
+---
+
+## ✨ Features
+
+| | Feature | What it does |
+|:--:|---|---|
+| 💡 | **Automatic topics** | The AI picks a new series idea every day from the categories you choose. |
+| 🚫 | **No repeats** | Every series is saved to `topics/history.json`, and new ideas that are too similar are rejected. |
+| 🔎 | **Web research** | Facts are collected with web search, and each one comes with a source link. |
+| 🧭 | **Real storytelling** | Each series is outlined first, then Part 1 → 2 → 3 are written with recaps and cliffhangers. |
+| ✅ | **Fact-check** | Every claim is checked against the sourced facts. If the check fails, nothing is saved. |
+| 🎙️ | **Free voice-over** | Natural Microsoft Edge voices (for example *Andrew Multilingual*), plus subtitles. |
+| 🎬 | **Auto-edited video** | 9:16 videos built from Pexels stock footage that matches each part's mood. |
+| 🙋 | **Human approval** | Videos wait in `output/pending/` until you approve them. |
+| 📤 | **Safe uploads** | Private by default, AI disclosure on, and a hard cap of 5 uploads a day. |
+| 🧪 | **Dry-run everything** | Every command supports `--dry-run`, which shows what would happen without calling any API. |
+
+---
+
+## 🧠 How it works
+
+```mermaid
+flowchart LR
+    CH["📚 topics/channel.yaml<br/>categories and tone"] --> IDEA["💡 1. Ideate"]
+    HIS[("🗂️ topics/history.json")] --> IDEA
+    IDEA --> RES["🔎 2. Research<br/>web search + sources"]
+    RES --> OUT["🧭 3. Outline<br/>throughline and cliffhangers"]
+    OUT --> WRITE["✍️ 4. Write<br/>Part 1 → 2 → 3"]
+    WRITE --> FC["✅ 5. Fact-check"]
+    FC --> ENG["🎬 6. Render<br/>voice, subtitles, footage"]
+    ENG --> PEN["📂 output/pending"]
+    PEN -->|"🙋 you approve"| APP["📂 output/approved"]
+    APP --> YT["📤 7. YouTube<br/>private + AI disclosure"]
 ```
-topics/queue.yaml ──► orchestrator.generate ──REST──► MoneyPrinterTurbo (Docker, behind Caddy basic auth)
-                              │
-                              ▼
-                     output/pending/<id>.mp4 + <id>.json
-                              │   you: `make review ARGS="approve <id>"` (or move the pair by hand)
-                              ▼
-                     output/approved/ ──► orchestrator.upload ──► YouTube Data API v3 (private, AI-disclosed)
-                              │
-                              ▼
-                     output/uploaded/  (sidecar gets youtube_video_id)
-```
 
-| Path | What |
+Every part ends with a call to action that the code adds itself, so the AI can't skip it:
+
+| Part | Ending |
 |---|---|
-| `vendor/moneyprinterturbo/` | Upstream MPT, **unmodified** except `resource/songs/` emptied. Gitignored; rebuild with `make vendor` (`MPT_REF=<tag>` to pin). Consumed only via REST. |
-| `orchestrator/` | `config` (env + validation), `models`, `generate` (MPT client), `review` (approval gate), `upload` (OAuth, resumable upload, quota), `scheduler` (daily entrypoint), `render_config` (fills `${VAR}` placeholders at container start). |
-| `config/config.template.toml` | Tracked copy of MPT's `config.example.toml` with `${VAR}` placeholders and the free stack (Ollama / Edge TTS / Pexels / Edge subtitles). `make setup` copies it to gitignored `config/config.toml`, which is mounted read-only and rendered **inside** the container, so secrets live only in `.env`. |
-| `config/env.example` | Every env var, with where to get it and whether it's optional. `make setup` copies it to `.env`. |
-| `deploy/Caddyfile` | Basic auth for the API (`:8080`) and WebUI (`:8501`). MPT ships no WebUI auth, and the WebUI shows your API keys. |
-| `topics/queue.yaml` | Hand-edited topic list. The pipeline never rewrites it; progress lives in `output/queue_state.json`. |
+| Part 1 | *"Follow for Part 2."* |
+| Part 2 | *"Follow for Part 3."* |
+| Part 3 | *"Subscribe to Plot Armor Facts for more videos."* |
 
-### Commands
+---
 
-Every entrypoint accepts `--dry-run`, which logs what would happen and calls no API. It works with no credentials.
+## 🧰 Requirements
+
+| Tool | Why | Download |
+|---|---|---|
+| **Git** | Download the project | https://git-scm.com/downloads |
+| **uv** | Installs Python 3.11 and all packages | https://docs.astral.sh/uv/getting-started/installation/ |
+| **Docker Desktop** | Runs the video engine | https://www.docker.com/products/docker-desktop/ |
+| **Ollama** *(optional)* | Free local AI, used for offline testing | https://ollama.com/download |
+| **make** *(optional)* | Short commands like `make up` | Windows: `winget install ezwinports.make` |
+
+> [!NOTE]
+> You need about **8 GB of free RAM** and **15 GB of free disk space**. The first Docker build downloads about 3 GB.
+
+---
+
+## 🚀 Installation
+
+### Step 1: Install the tools
+
+<details>
+<summary><b>🪟 Windows</b></summary>
+
+1. Install **Git**: https://git-scm.com/download/win
+2. Install **uv** (in PowerShell):
+   ```powershell
+   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+   ```
+3. Install **Docker Desktop**: https://www.docker.com/products/docker-desktop/ and start it once.
+4. *(Optional)* Install **make**:
+   ```powershell
+   winget install ezwinports.make
+   ```
+5. **Close and reopen your terminal** so the new commands are found.
+
+</details>
+
+<details>
+<summary><b>🍎 macOS / 🐧 Linux</b></summary>
+
+1. Install **Git** from your package manager.
+2. Install **uv**:
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+3. Install **Docker Desktop** (macOS) or **Docker Engine + Compose** (Linux): https://docs.docker.com/get-docker/
+4. `make` is usually already installed.
+
+</details>
+
+### Step 2: Download the project
 
 ```bash
-make vendor                      # clone MPT (no .git), strip bundled songs
-make setup                       # uv sync, output dirs, config/config.toml, .env
-make test                        # offline; all network calls mocked/blocked
-make daily ARGS=--dry-run        # full run, nothing executed
-make up                          # MPT API + WebUI + Caddy (needs BASIC_AUTH_* in .env)
-make generate                    # next DAILY_GENERATE_COUNT topics -> output/pending/
-make review                      # list; ARGS="approve <id>" / "reject <id>" / "show <id>"
-make auth                        # one-time Google OAuth consent -> .credentials/youtube.token.json
-make upload                      # upload output/approved/ within quota
-make daily                       # generate + upload (cron / Task Scheduler), or ARGS="--at 09:00"
+git clone https://github.com/ajmaladev/youtube-automations.git
+cd youtube-automations
 ```
 
-On Windows, `make` isn't installed by default. Use `winget install ezwinports.make` (run from Git Bash), WSL, or run the underlying `uv run python -m orchestrator.<module>` commands directly.
+### Step 3: Install Python packages
 
-### MoneyPrinterTurbo API contract (read from vendored source)
+```bash
+uv sync
+```
 
-All routes are under `/api/v1` (`app/controllers/v1/base.py`). If `[app].api_key` is non-empty, every `/api/v1/*` and `/tasks/*` request needs an `x-api-key` header (`app/controllers/base.py::verify_token`). Swagger is at `/docs`, and health is `GET /ping` → `"pong"`.
+> [!TIP]
+> `uv` downloads Python 3.11 automatically. You don't need to install Python yourself.
 
-**Create: `POST /api/v1/videos`**. The body is `TaskVideoRequest` (= `VideoParams`, `app/models/schema.py`). Only `video_subject` is required. Fields the orchestrator sends or relies on:
+### Step 4: Download the video engine
 
-| field | type / default | notes |
+The video engine is kept outside git and downloaded with one command. On Windows, run it from **Git Bash**:
+
+```bash
+make vendor
+```
+
+### Step 5: Create your config files
+
+<table>
+<tr><th>🪟 Windows (Command Prompt)</th><th>🍎 macOS / 🐧 Linux</th></tr>
+<tr><td>
+
+```bat
+copy config\config.template.toml config\config.toml
+copy config\env.example .env
+mkdir .credentials
+```
+
+</td><td>
+
+```bash
+make setup
+```
+
+</td></tr>
+</table>
+
+### Step 6: Fill in `.env`
+
+Open `.env` in any text editor and add your keys. The next section explains every variable, and [Get your keys](#-get-your-keys-step-by-step) shows how to create each one.
+
+> [!CAUTION]
+> `.env` holds your secrets. It is already in `.gitignore`. **Never commit it or share it.**
+
+### Step 7: Start the video engine
+
+Make sure **Docker Desktop is running**, then:
+
+```bash
+docker compose up -d --build
+```
+
+⏳ The first build takes 5–10 minutes. Later starts take seconds.
+
+### Step 8: Check that it works
+
+1. Open **http://127.0.0.1:8080/docs**, or use the port you set in `ENGINE_HOST_PORT`.
+2. Log in with `BASIC_AUTH_USER` and your password.
+3. You should see the engine's API page. 🎉
+
+Then run the tests and a full dry run, which use no API calls or credits:
+
+```bash
+uv run pytest
+uv run python -m orchestrator.scheduler --dry-run
+```
+
+---
+
+## 🔐 Environment variables (`.env`)
+
+**Legend:** 🔴 Required · 🟡 Required in some cases · 🟢 Optional (a default is used)
+
+### 🎬 Video generation
+
+| Variable | Need | Example / default | What it is |
+|---|:--:|---|---|
+| `PEXELS_API_KEY` | 🔴 | `563492ad6f9...` | Free stock-footage key. [How to get it](#1-pexels-api-key-stock-footage) |
+| `LLM_PROVIDER` | 🟢 | `ollama` | AI the **video engine** uses for manual topics (`ollama` or `openai`) |
+| `OLLAMA_HOST` | 🟡 | `http://host.docker.internal:11434` | Needed when `LLM_PROVIDER=ollama` |
+| `OLLAMA_MODEL` | 🟢 | `llama3.1` | Any model shown by `ollama list` |
+| `OPENAI_API_KEY` | 🟡 | `sk-...` | Only if `LLM_PROVIDER=openai` or `STORY_LLM_PROVIDER=openai` (paid) |
+| `ELEVENLABS_API_KEY` | 🟢 | *(empty)* | Premium voices instead of the free Edge voices |
+
+### ✍️ Automatic story series
+
+| Variable | Need | Example / default | What it is |
+|---|:--:|---|---|
+| `AUTO_SERIES` | 🟢 | `true` | Plan new series automatically when the manual queue is empty |
+| `STORY_LLM_PROVIDER` | 🔴 | **`groq`** | AI that writes the stories: `groq`, `gemini`, `openai` or `ollama` |
+| `GROQ_API_KEY` | 🟡 | `gsk_...` | Needed for `groq`. [How to get it](#2-groq-api-key-story-writing--research) |
+| `STORY_LLM_MODEL` | 🟢 | `openai/gpt-oss-20b` | Writer model (leave empty for the default) |
+| `STORY_RESEARCH_MODEL` | 🟢 | `openai/gpt-oss-120b` | Web-search research model (`off` disables research) |
+| `STORY_ALLOW_UNVERIFIED` | 🟢 | `false` | `true` allows series without web research. **Testing only** |
+| `GEMINI_API_KEY` | 🟡 | `AIza...` | Only if `STORY_LLM_PROVIDER=gemini` |
+
+> [!IMPORTANT]
+> Set `STORY_LLM_PROVIDER=groq`. Only Groq has built-in **web research**. With the other providers, planning stops with *"no web research available"*, because the AI would otherwise invent its own facts.
+
+### 🔒 Video engine access and security
+
+| Variable | Need | Example / default | What it is |
+|---|:--:|---|---|
+| `BASIC_AUTH_USER` | 🔴 | `admin` | Username for the engine's pages |
+| `BASIC_AUTH_HASH` | 🔴 | `'$2a$14$Avd...'` | Encrypted password. **Keep the single quotes.** [How](#4-password-hash-basic_auth_hash) |
+| `BASIC_AUTH_PASSWORD` | 🔴 | `MyStr0ngPass` | The same password in plain text (used by the scripts) |
+| `ENGINE_API_KEY` | 🟢 | `x9Kq...` | Extra API protection. [How](#5-engine-api-key-optional) |
+| `ENGINE_BASE_URL` | 🟢 | `http://127.0.0.1:8080` | Where the scripts reach the engine |
+| `ENGINE_HOST_PORT` | 🟢 | `8080` | Change it (for example to `8081`) if the port is busy, and update `ENGINE_BASE_URL` to match |
+| `WEBUI_HOST_PORT` | 🟢 | `8501` | Port for the engine's web interface |
+| `BIND_ADDR` | 🟢 | `127.0.0.1` | Keep `127.0.0.1` so only your computer can access it |
+
+### 📤 YouTube upload
+
+| Variable | Need | Example / default | What it is |
+|---|:--:|---|---|
+| `YOUTUBE_CLIENT_SECRETS_PATH` | 🔴 | `.credentials/client_secret.json` | Google OAuth file. [How to get it](#6-youtube-upload-access-google-cloud) |
+| `YOUTUBE_MAX_UPLOADS_PER_DAY` | 🟢 | `5` | Daily upload cap (5 at most) |
+| `YOUTUBE_DAILY_QUOTA_UNITS` | 🟢 | `10000` | Google's free daily API quota |
+| `YOUTUBE_UPLOAD_UNIT_COST` | 🟢 | `1600` | Conservative estimated cost per upload |
+
+### ⏰ Scheduling
+
+| Variable | Need | Example / default | What it is |
+|---|:--:|---|---|
+| `DAILY_GENERATE_COUNT` | 🟢 | `3` | Videos per daily run (3 = one full series) |
+| `ENGINE_POLL_INTERVAL_S` | 🟢 | `10` | Seconds between progress checks |
+| `ENGINE_GENERATE_TIMEOUT_S` | 🟢 | `1800` | Give up on a render after this many seconds |
+
+<details>
+<summary><b>⚙️ Advanced variables (you normally don't need these)</b></summary>
+
+| Variable | Default | What it is |
 |---|---|---|
-| `video_subject` | str, **required** | topic; the LLM writes the script from it |
-| `video_script` | str `""` | supply your own script to skip the LLM |
-| `video_terms` | str \| list \| null | stock-footage search terms; LLM-generated if null |
-| `video_aspect` | `"9:16"` (default) \| `"16:9"` \| `"1:1"` | |
-| `video_source` | str `"pexels"` | `pexels`, `pixabay`, `coverr`, `local`, paid generators… |
-| `video_clip_duration` | int `5` (≥1) | |
-| `video_count` | int `1` (≥1) | |
-| `video_language` | str `""` | auto-detect if empty |
-| `voice_name` | str `""` | **the TTS provider is inferred from the voice name**; the API has no `tts_server` field. Edge TTS voices look like `en-US-JennyNeural-Female` (`voice.py::is_azure_v1_voice`) |
-| `voice_rate` / `voice_volume` | float `1.0` | |
-| `bgm_type` / `bgm_file` / `bgm_volume` | `"random"` / `""` / `0.2` | `bgm_type=""` means no music; `random` with an empty songs dir also falls back to none (`video.py::get_bgm_file`) |
-| `subtitle_enabled` | bool `true` | |
-| `subtitle_position` | str (from `[ui]`, default `"bottom"`) | `top`/`center`/`bottom`/`custom` |
-| `font_name`, `font_size` (60), `text_fore_color`, `stroke_color`, `stroke_width` (1.5) | | subtitle styling |
-| `paragraph_number` | int `1` (1–10) | script length |
-| `video_script_prompt` / `custom_system_prompt` | str, ≤2000 / ≤8000 | |
+| `STORY_LLM_BASE_URL` | provider default | Custom OpenAI-compatible endpoint |
+| `OUTPUT_DIR` | `output` | Where videos and state files are stored |
+| `CREDENTIALS_DIR` | `.credentials` | Where the YouTube login token is saved |
+| `TOPIC_QUEUE_PATH` | `topics/queue.yaml` | Manual topic list |
+| `CHANNEL_CONFIG_PATH` | `topics/channel.yaml` | Channel settings |
+| `STORY_HISTORY_PATH` | `topics/history.json` | List of past series |
 
-Response `200` (filtered through `response_model=TaskResponse`):
-```json
-{"status": 200, "message": "success", "data": {"task_id": "6c85c8cc-a77a-42b9-bc30-947815aa0558"}}
+</details>
+
+### 📋 Minimal working `.env`
+
+```ini
+PEXELS_API_KEY=your-pexels-key
+LLM_PROVIDER=ollama
+OLLAMA_HOST=http://host.docker.internal:11434
+
+STORY_LLM_PROVIDER=groq
+GROQ_API_KEY=your-groq-key
+
+BASIC_AUTH_USER=admin
+BASIC_AUTH_HASH='paste-your-hash-here'
+BASIC_AUTH_PASSWORD=your-password
+
+YOUTUBE_CLIENT_SECRETS_PATH=.credentials/client_secret.json
+DAILY_GENERATE_COUNT=3
 ```
-Errors use the same envelope: `400` for validation (`"message": "field required"`, `data` = pydantic errors), `401` for an invalid API key, and `429` when the task queue is full (`max_queued_tasks`).
 
-**Poll: `GET /api/v1/tasks/{task_id}`** → `{"status":200,"data":{…TaskStatusData…}}`
-- `state`: `4` processing, `1` complete, `-1` failed (`app/models/const.py`)
+---
+
+## 🔑 Get your keys, step by step
+
+<a id="1-pexels-api-key-stock-footage"></a>
+
+<details>
+<summary><h3>1. Pexels API key (stock footage)</h3></summary>
+
+> 💰 **Free**, no credit card needed.
+
+1. Go to **https://www.pexels.com/join/** and create an account (or log in).
+2. Open **https://www.pexels.com/api/** and click **"Your API Key"**.
+3. Fill in the short form:
+   - **Project name:** `Plot Armor Facts`
+   - **Category:** `AI`
+   - **Description:** *Automated educational YouTube Shorts using Pexels stock videos, credited in each video description.*
+4. Tick **I agree to the Terms**, then click **Generate API Key**.
+5. Copy the key into `.env`:
+   ```ini
+   PEXELS_API_KEY=your-key-here
+   ```
+
+</details>
+
+<a id="2-groq-api-key-story-writing--research"></a>
+
+<details>
+<summary><h3>2. Groq API key (story writing and research)</h3></summary>
+
+> 💰 **Free tier**: about 200,000 tokens a day per model. One full series uses roughly 40–50k.
+
+1. Go to **https://console.groq.com** and sign in with Google or GitHub.
+2. Open **https://console.groq.com/keys**.
+3. Click **Create API Key**, name it `plot-armor-facts`, then click **Submit**.
+4. **Copy the key right away**, because it is shown only once.
+5. Add it to `.env`:
+   ```ini
+   STORY_LLM_PROVIDER=groq
+   GROQ_API_KEY=gsk_your-key-here
+   ```
+6. *(Optional)* Check your limits at **https://console.groq.com/settings/limits**.
+
+</details>
+
+<a id="3-ollama-free-local-ai"></a>
+
+<details>
+<summary><h3>3. Ollama (free local AI)</h3></summary>
+
+> 💰 **Free**, runs on your own computer.
+
+1. Download and install it from **https://ollama.com/download**.
+2. Open a **new** terminal and download a model (about 4.9 GB):
+   ```bash
+   ollama pull llama3.1
+   ```
+3. Test it:
+   ```bash
+   ollama run llama3.1 "Say hello in one sentence."
+   ```
+4. Keep Ollama running in the system tray. `.env` already points to it:
+   ```ini
+   LLM_PROVIDER=ollama
+   OLLAMA_HOST=http://host.docker.internal:11434
+   OLLAMA_MODEL=llama3.1
+   ```
+
+</details>
+
+<a id="4-password-hash-basic_auth_hash"></a>
+
+<details>
+<summary><h3>4. Password hash (<code>BASIC_AUTH_HASH</code>)</h3></summary>
+
+The engine's pages are protected by a password. Caddy stores it as a secure hash.
+
+1. Start **Docker Desktop**.
+2. Run:
+   ```bash
+   docker run --rm -it caddy:2-alpine caddy hash-password
+   ```
+3. Type your password twice. The characters don't show while you type; that's normal.
+4. Copy the output, which starts with `$2a$14$`, into `.env` **inside single quotes**:
+   ```ini
+   BASIC_AUTH_USER=admin
+   BASIC_AUTH_HASH='$2a$14$your-hash'
+   BASIC_AUTH_PASSWORD=the-password-you-typed
+   ```
+
+> [!WARNING]
+> Without the single quotes, Docker misreads the `$` signs and you'll see *"variable is not set"* warnings.
+
+</details>
+
+<a id="5-engine-api-key-optional"></a>
+
+<details>
+<summary><h3>5. Engine API key (optional)</h3></summary>
+
+This adds a second lock on the engine's API. Generate any long random string:
+
+```bash
+uv run python -c "import secrets; print(secrets.token_urlsafe(32))"
+```
+
+```ini
+ENGINE_API_KEY=the-generated-string
+```
+
+</details>
+
+<a id="6-youtube-upload-access-google-cloud"></a>
+
+<details>
+<summary><h3>6. YouTube upload access (Google Cloud)</h3></summary>
+
+> 💰 **Free**, no billing account needed.
+
+**A. Create a project**
+1. Open **https://console.cloud.google.com/projectcreate**.
+2. Name it `plot-armor-facts`, then click **Create**.
+
+**B. Enable the YouTube API**
+1. Open **https://console.cloud.google.com/apis/library/youtube.googleapis.com**.
+2. Make sure your new project is selected at the top, then click **Enable**.
+
+**C. Set up the consent screen**
+1. Open **https://console.cloud.google.com/auth/overview** and click **Get started**.
+2. **App name:** `Plot Armor Facts`. **Support email:** your email.
+3. **Audience:** choose **External**.
+4. Add your contact email, accept the policy, then click **Create**.
+
+**D. Add the upload permission**
+1. Open **https://console.cloud.google.com/auth/scopes**.
+2. Click **Add or remove scopes** and add `https://www.googleapis.com/auth/youtube.upload`.
+3. Click **Update**, then **Save**.
+
+**E. Publish the app** ⚠️ *very important*
+1. Open **https://console.cloud.google.com/auth/audience**.
+2. Click **Publish app** so the status becomes **In production**.
+
+> [!WARNING]
+> If the app stays in **Testing**, your YouTube login **expires every 7 days** and daily uploads stop working.
+
+**F. Create the desktop client**
+1. Open **https://console.cloud.google.com/auth/clients**.
+2. Click **Create client**, set **Application type** to **Desktop app**, name it `plot-armor-desktop`, then click **Create**.
+3. Click **Download JSON**.
+4. Rename the file to `client_secret.json` and move it into the project's `.credentials/` folder.
+5. Check `.env`:
+   ```ini
+   YOUTUBE_CLIENT_SECRETS_PATH=.credentials/client_secret.json
+   ```
+
+**G. Verify your YouTube channel**
+- Verify your phone number at **https://www.youtube.com/verify** to unlock higher upload limits.
+
+**H. Request the API audit** *(needed to publish publicly)*
+- Fill in **https://support.google.com/youtube/contact/yt_api_form**.
+
+> [!CAUTION]
+> Until Google approves the audit, videos uploaded through the API are **locked to private**, and there is no appeal for videos uploaded before approval.
+
+**I. First login**
+- When you run `upload --auth-only`, Google may show *"Google hasn't verified this app"*. It's your own app, so click **Advanced → Go to Plot Armor Facts**.
+
+</details>
+
+<a id="7-optional-keys"></a>
+
+<details>
+<summary><h3>7. Optional keys (Gemini, OpenAI, ElevenLabs)</h3></summary>
+
+| Service | Cost | Where to create the key | `.env` variable |
+|---|---|---|---|
+| Google Gemini | Free tier | https://aistudio.google.com/app/apikey | `GEMINI_API_KEY` |
+| OpenAI | Paid | https://platform.openai.com/api-keys | `OPENAI_API_KEY` |
+| ElevenLabs | Free trial; paid plan for commercial use | https://elevenlabs.io/app/settings/api-keys | `ELEVENLABS_API_KEY` |
+
+</details>
+
+---
+
+## 🎮 Usage
+
+> [!TIP]
+> Add `--dry-run` to any command to see what it **would** do, without API calls, credits or uploads.
+
+### Step 1: Start everything
+
+1. Open **Docker Desktop** and wait until it shows *Engine running*.
+2. *(Optional)* Start **Ollama**.
+3. Start the video engine:
+   ```bash
+   docker compose up -d
+   ```
+
+### Step 2: Plan a new series
+
+```bash
+uv run python -m orchestrator.story plan
+```
+
+This prints the 3 scripts with their word counts and saves them to `output/series/<series-id>.json`, together with the facts, sources and fact-check report.
+
+### Step 3: Render the videos
+
+```bash
+uv run python -m orchestrator.generate --count 3
+```
+
+- Each video takes about 2–4 minutes.
+- Finished videos appear in **`output/pending/`**.
+- To render one specific part: `--topic <series-id>-p1`.
+
+> [!NOTE]
+> Topics you add by hand in `topics/queue.yaml` are rendered **before** automatic series.
+
+### Step 4: Review and approve
+
+```bash
+uv run python -m orchestrator.review list
+uv run python -m orchestrator.review show <id>
+```
+
+Watch the `.mp4` in `output/pending/`, then decide:
+
+```bash
+uv run python -m orchestrator.review approve <id>
+uv run python -m orchestrator.review reject <id>
+```
+
+### Step 5: Connect YouTube (one time only)
+
+```bash
+uv run python -m orchestrator.upload --auth-only
+```
+
+Your browser opens so you can log in, and the login is saved to `.credentials/youtube.token.json`.
+
+### Step 6: Upload
+
+```bash
+uv run python -m orchestrator.upload
+```
+
+- Uploads everything in `output/approved/`, up to 5 a day.
+- Videos go up **private** with the AI disclosure on.
+- Uploaded videos move to `output/uploaded/`, and each one's `.json` file records its YouTube ID.
+- In **YouTube Studio**, open each video, choose **Visibility → Schedule**, and pick a time (for example morning, afternoon and night).
+
+### Step 7: Automate it daily
+
+The daily run plans or renders videos, then uploads anything you've approved:
+
+```bash
+uv run python -m orchestrator.scheduler
+```
+
+<details>
+<summary><b>🪟 Windows Task Scheduler (every day at 09:00)</b></summary>
+
+```bat
+schtasks /Create /SC DAILY /ST 09:00 /TN "PlotArmorFacts" /TR "cmd /c cd /d C:\path\to\youtube-automations && uv run python -m orchestrator.scheduler >> output\daily.log 2>&1"
+```
+
+Your PC must be on, with Docker Desktop running, at that time.
+
+</details>
+
+<details>
+<summary><b>🍎 macOS / 🐧 Linux cron (every day at 09:00)</b></summary>
+
+```cron
+0 9 * * * cd /path/to/youtube-automations && uv run python -m orchestrator.scheduler >> output/daily.log 2>&1
+```
+
+</details>
+
+### ⚡ Command cheat sheet
+
+| Task | Command | With `make` |
+|---|---|---|
+| Plan a series | `uv run python -m orchestrator.story plan` | – |
+| List past series | `uv run python -m orchestrator.story history` | – |
+| Render videos | `uv run python -m orchestrator.generate --count 3` | `make generate` |
+| Review | `uv run python -m orchestrator.review list` | `make review` |
+| YouTube login | `uv run python -m orchestrator.upload --auth-only` | `make auth` |
+| Upload | `uv run python -m orchestrator.upload` | `make upload` |
+| Daily run | `uv run python -m orchestrator.scheduler` | `make daily` |
+| Start / stop engine | `docker compose up -d` / `docker compose down` | `make up` / `make down` |
+| Engine logs | `docker compose logs -f` | `make logs` |
+| Run tests | `uv run pytest` | `make test` |
+
+---
+
+## 🎨 Customize your channel
+
+### `topics/channel.yaml`: your channel's personality
+
+```yaml
+channel_name: "Plot Armor Facts"
+episodes_per_series: 3
+words_per_episode: [90, 130]      # ~35-50 seconds per part
+tone: "fast, punchy and curious"
+categories:
+  - name: comics-lore             # higher weight = picked more often
+    weight: 3
+    brief: "Marvel and DC history: origins, storylines, creator stories."
+  - name: superhero-science
+    weight: 2
+    brief: "The real science behind superpowers."
+```
+
+### `topics/queue.yaml`: voice, style and manual topics
+
+```yaml
+defaults:
+  voice_name: "en-US-AndrewMultilingualNeural-Male"   # natural free voice
+  video_aspect: "9:16"
+  category_id: "27"                                    # 27 = Education
+
+topics:                          # optional: runs before automatic series
+  - id: spider-silk-vs-steel
+    subject: "Is real spider silk stronger than steel?"
+    video_terms: "spider web dew, steel cable, laboratory"
+```
+
+<details>
+<summary><b>🎙️ More free natural voices</b></summary>
+
+| Voice | Style |
+|---|---|
+| `en-US-AndrewMultilingualNeural-Male` | Warm, confident narrator ⭐ |
+| `en-US-BrianMultilingualNeural-Male` | Casual, friendly |
+| `en-US-AvaMultilingualNeural-Female` | Bright, expressive |
+| `en-US-EmmaMultilingualNeural-Female` | Clear, cheerful |
+
+</details>
+
+---
+
+## 🛡️ Limits and safety
+
+| Limit | Value | Notes |
+|---|---|---|
+| YouTube uploads | **5 per day** | Hard-capped in code |
+| YouTube privacy | **Private** | `public` is refused; publish yourself in YouTube Studio |
+| AI disclosure | **Always on** | `containsSyntheticMedia: true` |
+| Groq free tier | ~200k tokens per model per day | Research uses ~30k per series |
+| Pexels free tier | ~200 requests per hour | Plenty for daily videos |
+
+> [!IMPORTANT]
+> **Copyright:** never add official Marvel/DC art, movie clips, comic panels or logos. The pipeline uses only Pexels stock footage and your own narration. The bundled background songs were removed because of copyright risk.
+
+---
+
+## 🩺 Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `'make' is not recognized` | Reopen the terminal after installing, use **Git Bash**, or run the `uv run ...` command instead |
+| `'ollama' is not recognized` | Reopen the terminal, or use `"%LOCALAPPDATA%\Programs\Ollama\ollama.exe"` |
+| `open //./pipe/dockerDesktopLinuxEngine` | Start **Docker Desktop** and wait for *Engine running* |
+| Docker Desktop: *"Inference manager … file cannot be accessed"* | Click **Quit**, run `wsl --shutdown`, start Docker again, and turn off *Settings → AI → Docker Model Runner* |
+| `ports are not available … 8080` | Another app uses the port. Set `ENGINE_HOST_PORT=8081` and `ENGINE_BASE_URL=http://127.0.0.1:8081` |
+| `The "Avd" variable is not set` | Put single quotes around `BASIC_AUTH_HASH='...'` |
+| `Connection refused` on generate | Run `docker compose ps`. The caddy container must be *Up*. |
+| `groq HTTP 429 … tokens per day` | Groq's free daily limit is reached. Try again later or tomorrow. |
+| `model ... does not exist` | Groq retired the model. Set a current one in `STORY_LLM_MODEL` (see https://console.groq.com/docs/models) |
+| `no web research available` | Set `STORY_LLM_PROVIDER=groq` in `.env` |
+| `draft rejected (... words)` | The AI wrote the wrong length. It retries automatically; Groq models do this far less often than Ollama. |
+| Video voice sounds robotic | Use a *Multilingual* voice from [Customize your channel](#-customize-your-channel) |
+| YouTube login expires after 7 days | Publish the consent screen (**In production**). See [Google Cloud step E](#6-youtube-upload-access-google-cloud) |
+
+---
+
+## 🗂️ Project structure
+
+```text
+youtube-automations/
+├── 📁 orchestrator/            # the pipeline (Python)
+│   ├── story.py                #   ideate → research → outline → write → fact-check
+│   ├── llm.py                  #   Groq / Gemini / OpenAI / Ollama client
+│   ├── generate.py             #   sends scripts to the video engine, downloads videos
+│   ├── review.py               #   approval gate (pending → approved)
+│   ├── upload.py               #   YouTube OAuth, resumable upload, quota
+│   ├── scheduler.py            #   daily run
+│   ├── config.py               #   reads and validates .env
+│   ├── models.py               #   data classes
+│   └── render_config.py        #   fills engine config at container start
+├── 📁 topics/
+│   ├── channel.yaml            # ✏️ channel personality and categories
+│   ├── queue.yaml              # ✏️ voice, style, manual topics
+│   └── history.json            # every series ever planned (no repeats)
+├── 📁 config/
+│   ├── env.example             # template for .env
+│   └── config.template.toml    # engine config with ${VARIABLE} placeholders
+├── 📁 deploy/
+│   ├── Caddyfile               # password protection
+│   └── engine.Dockerfile       # engine image
+├── 📁 tests/                   # offline tests (no network)
+├── 📁 output/                  # 🚫 gitignored: series/, pending/, approved/, uploaded/
+├── 📁 vendor/video-engine/     # 🚫 gitignored: downloaded by `make vendor`
+├── 📁 .credentials/            # 🚫 gitignored: Google OAuth files
+├── docker-compose.yml
+├── Makefile
+└── .env                        # 🚫 gitignored: your secrets
+```
+
+---
+
+## 👩‍💻 Developer reference
+
+<details>
+<summary><b>🧪 Tests</b></summary>
+
+```bash
+uv run pytest
+```
+
+- All network access is blocked in tests, and every external API is mocked.
+- No `.env` or credentials are needed.
+
+</details>
+
+<details>
+<summary><b>🔌 Video engine REST API</b></summary>
+
+All routes are under `/api/v1`. If `ENGINE_API_KEY` is set, every request needs an `x-api-key` header. API docs are at `/docs`, and the health check is `GET /ping` → `"pong"`.
+
+**Create a video: `POST /api/v1/videos`**
+
+| Field | Type / default | Notes |
+|---|---|---|
+| `video_subject` | string, **required** | Topic |
+| `video_script` | string `""` | The pipeline sends the finished script, so the engine's own AI is skipped |
+| `video_terms` | string or list | Stock-footage search terms |
+| `video_aspect` | `"9:16"` / `"16:9"` / `"1:1"` | |
+| `video_source` | `"pexels"` | |
+| `voice_name` | string | The voice provider is inferred from the name, e.g. `en-US-AndrewMultilingualNeural-Male` |
+| `bgm_type` | `"random"` | `""` = no background music |
+| `subtitle_enabled` | `true` | |
+| `paragraph_number` | `1` (1–10) | Script length when the engine writes the script |
+
+Response: `{"status": 200, "message": "success", "data": {"task_id": "..."}}`
+
+**Check progress: `GET /api/v1/tasks/{task_id}`**
+- `state`: `4` processing, `1` complete, `-1` failed
 - `progress`: 0–100
-- on completion: `videos` (e.g. `["/tasks/<task_id>/final-1.mp4"]`, absolute if `[app].endpoint` is set), `combined_videos`, `script`, `terms`, `audio_file`, `audio_duration`, `subtitle_path`, `materials`, `warnings`
-- on failure: `failed_stage`, `error`
-- `404` if unknown. Task state is in memory unless `enable_redis = true`, so an API restart forgets tasks.
+- When complete: `videos` (e.g. `["/tasks/<id>/final-1.mp4"]`), `script`, `terms`, `audio_duration`
+- When failed: `failed_stage`, `error`
 
-**Download:** `GET <videos[0]>`, i.e. the `/tasks/...` static mount (auth-protected), or `GET /api/v1/download/{task_id}/final-1.mp4`.
+**Other routes:** `POST /api/v1/social-metadata` (title, caption, hashtags), `GET /api/v1/download/{path}`, `DELETE /api/v1/tasks/{id}`, `GET|POST /api/v1/musics`.
 
-**Titles (optional):** `POST /api/v1/social-metadata` `{"video_subject","video_script","language":"auto","platform":"youtube"}` → `data: {title, caption, hashtags[]}`. It's used when a topic has no title/description.
+</details>
 
-Other routes: `POST /api/v1/subtitle`, `POST /api/v1/audio`, `GET /api/v1/tasks?page=&page_size=`, `DELETE /api/v1/tasks/{id}` (409 while running), `GET|POST /api/v1/musics`, `GET|POST /api/v1/video_materials`, `GET /api/v1/stream/{path}`, `POST /api/v1/scripts`, `POST /api/v1/terms`.
+<details>
+<summary><b>📤 Upload internals</b></summary>
 
-### YouTube upload behaviour
+- **OAuth:** desktop flow with `youtube.upload` scope only; the token refreshes automatically.
+- **Resumable upload:** 8 MiB chunks. Errors 500/502/503/504 are retried with exponential backoff; quota errors stop the run for the day.
+- **Quota ledger:** `output/quota_ledger.json`, keyed by Pacific date, because YouTube quota resets at midnight PT.
+- **Integrity check:** only `output/approved/` is read, and a video is skipped if its SHA-256 changed after approval.
 
-- Scope is `youtube.upload` only, using the desktop OAuth flow with `access_type=offline`. The token is refreshed automatically and saved to `.credentials/youtube.token.json`.
-- Uploads are resumable (8 MiB chunks). HTTP 500/502/503/504 and connection errors are retried up to 10 times with exponential backoff and jitter. `403 quotaExceeded`/`uploadLimitExceeded` stops the run for the day.
-- Every upload sets `status.containsSyntheticMedia: true` and `privacyStatus: "private"`. `unlisted` is allowed per topic, and `public` is refused in both the model and the request builder.
-- **Quota:** a local ledger (`output/quota_ledger.json`, keyed by Pacific date since quota resets at midnight PT) charges `YOUTUBE_UPLOAD_UNIT_COST` per *attempt* against 10,000 units, with a hard cap of 5 attempts/day. Remaining budget is logged before and after each upload.
-  - Note: Google's revision history (2025-12-04) says an upload now costs about 100 units instead of about 1,600. The default stays at the conservative 1,600, and the 5/day cap applies regardless.
-- The uploader only reads `output/approved/` and skips any video whose sha256 changed since generation.
+</details>
 
-### Background music
+<details>
+<summary><b>🧩 Story pipeline internals</b></summary>
 
-`make vendor` deletes MPT's bundled `resource/songs/*.mp3`. Upstream's README says they come from YouTube videos and should be deleted if copyright is a concern. Topics default to `bgm_type: ""`. To add music, upload tracks you have a license for via `POST /api/v1/musics` and set `bgm_file` per topic.
+1. **Ideate:** the writer model proposes 6 ideas and is shown recent history.
+2. **Dedupe:** title, subject and keyword similarity against `history.json` (`similarity_threshold`).
+3. **Research:** `STORY_RESEARCH_MODEL` with Groq browser search. Ideas with fewer than `min_verified_facts` are dropped.
+4. **Outline:** throughline, 4–6 beats per part, and cliffhangers.
+5. **Write:** parts are written one by one, each given the previous script. Off-length parts are rewritten individually.
+6. **Fact-check:** claims are compared with the sourced facts. A failure means nothing is saved; a too-short result gets a length fix.
+7. **Enforce:** calls to action the model wrote are stripped, and the fixed endings above are added.
+
+Planned series live in `output/series/*.json`. Move a file to `output/series/_rejected/` to discard it.
+
+</details>
+
+---
+
+<div align="center">
+
+Made with ❤️ for **Plot Armor Facts** · *Stories with the facts to back them up.*
+
+</div>
