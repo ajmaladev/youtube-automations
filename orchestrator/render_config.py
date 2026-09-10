@@ -1,6 +1,6 @@
-"""Render config/config.toml (with ${VAR} placeholders) into a real MPT config.
+"""Render config/config.toml (with ${VAR} placeholders) into the video engine's config.
 
-Stdlib only: this file is mounted into the MoneyPrinterTurbo container and run
+Stdlib only: this file is mounted into the video engine container and run
 at container start, so secrets come from the container environment and are
 never written into this repository.
 

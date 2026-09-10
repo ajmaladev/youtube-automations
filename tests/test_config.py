@@ -17,7 +17,7 @@ def test_every_module_imports_without_credentials(name):
 
 def test_load_defaults_without_env():
     s = config.load()
-    assert s.mpt_base_url == "http://127.0.0.1:8080"
+    assert s.engine_base_url == "http://127.0.0.1:8080"
     assert s.llm_provider == "ollama"
     assert s.max_uploads_per_day == 5
     assert s.upload_unit_cost == 1600
@@ -99,8 +99,8 @@ def test_public_privacy_is_refused():
         VideoRequest(topic_id="a", subject="b", privacy_status="public")
 
 
-def test_unknown_keys_are_forwarded_to_mpt():
+def test_unknown_keys_are_forwarded_to_engine():
     req = VideoRequest.from_dict({"topic_id": "a", "subject": "b", "font_size": 72})
-    payload = req.to_mpt_payload()
+    payload = req.to_engine_payload()
     assert payload["font_size"] == 72 and payload["video_subject"] == "b"
     assert payload["bgm_type"] == ""

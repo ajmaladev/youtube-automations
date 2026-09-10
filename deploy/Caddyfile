@@ -1,4 +1,4 @@
-# Basic-auth front door for MoneyPrinterTurbo. MPT ships no WebUI auth, and
+# Basic-auth front door for the video engine. It ships no WebUI auth, and
 # its WebUI displays the configured API keys, so nothing reaches it without
 # a password. Credentials come from .env (BASIC_AUTH_USER / BASIC_AUTH_HASH).
 # An empty BASIC_AUTH_HASH makes Caddy refuse to start - that is intentional.

@@ -1,0 +1,35 @@
+# Plot Armor Facts - automatic series settings (edit by hand).
+#
+# When topics/queue.yaml has no unfinished manual topics, the pipeline asks the
+# story LLM (STORY_LLM_PROVIDER in .env) to plan a new multi-part series from
+# these categories. Every planned series is recorded in topics/history.json and
+# new ideas that are too similar to anything there are rejected.
+
+channel_name: "Plot Armor Facts"
+episodes_per_series: 3
+words_per_episode: [90, 130]    # ~35-50 seconds of narration per part
+ideas_per_round: 6              # ideas proposed before de-duplication
+similarity_threshold: 0.55      # 0-1; lower = stricter about "same story"
+avoid_recent: 100               # past series shown to the AI as "already covered"
+min_verified_facts: 8           # ideas with fewer researched, sourced facts are dropped
+
+audience: "teens and adults who love comics, superheroes and 'wait, really?' science"
+tone: "fast, punchy and curious - like a friend telling you an incredible story"
+description_footer: "Stock footage: Pexels. Made with AI-assisted narration."
+
+categories:
+  - name: comics-lore
+    weight: 3
+    brief: >-
+      Marvel and DC history: character origins, legendary storylines, behind-the-scenes
+      creator stories, retcons and deep-cut lore. Well-documented facts only.
+  - name: superhero-science
+    weight: 2
+    brief: >-
+      The real science behind superpowers and comic tech: could it work, what would it
+      take, and what real research comes closest.
+  - name: real-life-legends
+    weight: 1
+    brief: >-
+      True events, people or animals from history and nature that sound like
+      comic book plots.

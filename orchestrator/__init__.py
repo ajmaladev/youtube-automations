@@ -1,1 +1,1 @@
-"""Glue between MoneyPrinterTurbo (REST), a human review gate, and YouTube."""
+"""Plot Armor Facts pipeline: video engine (REST) -> human review gate -> YouTube."""
