@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Automation Status · Plot Armor Facts</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="inner">
+      <a class="brand" href="./"><img src="assets/logo.png" alt=""><span>Plot Armor <b>Facts</b></span></a>
+      <nav class="nav">
+        <a href="./">Home</a>
+        <a href="calendar.html">Content</a>
+        <a href="status.html" aria-current="page">Status &amp; retry</a>
+        <a href="privacy.html">Privacy</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>Automation status</h1>
+    <p class="muted">Check whether each day's videos were rendered and uploaded, and retry any video that failed.</p>
+    <div class="controls" id="picker"></div>
+    <div id="notice"></div>
+
+    <div class="card" id="day-card">
+      <div class="series-head">
+        <div>
+          <p class="muted small" id="day-label" style="margin:0"></p>
+          <h3 id="series-title">Loading...</h3>
+        </div>
+        <button class="btn" type="button" id="retry-day" disabled>Retry missing videos</button>
+      </div>
+      <div class="table-wrap" style="margin-top:12px">
+        <table>
+          <thead><tr><th>Part</th><th>Video</th><th>Publishes</th><th>Status</th><th></th></tr></thead>
+          <tbody id="parts"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <h2>Recent runs</h2>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Started</th><th>Run</th><th>Trigger</th><th>Result</th></tr></thead>
+          <tbody id="runs"><tr><td colspan="4" class="muted">Loading...</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+
+    <h2>Retry access</h2>
+    <div class="card stack">
+      <p class="small">To start runs from this page, create a
+        <a href="https://github.com/settings/personal-access-tokens/new" rel="noopener" target="_blank">fine-grained GitHub token</a>:
+        <strong>Repository access</strong> → Only select repositories → <code id="repo-name"></code>, then
+        <strong>Permissions</strong> → Actions → <strong>Read and write</strong>. Paste it below. It is saved only in this browser
+        and sent only to GitHub.</p>
+      <div class="cmd">
+        <input type="password" id="token" placeholder="github_pat_..." autocomplete="off" style="flex:1;min-width:220px">
+        <button class="btn" type="button" id="save-token">Save token</button>
+        <button class="btn secondary" type="button" id="forget-token">Forget</button>
+      </div>
+      <p class="small muted" style="margin:0">No token? Run the same retry from a terminal with the GitHub CLI:</p>
+      <div class="cmd">
+        <code id="gh-cmd"></code>
+        <button class="btn secondary" type="button" id="copy-cmd">Copy</button>
+      </div>
+    </div>
+  </main>
+
+  <footer id="footer"></footer>
+
+  <script src="assets/site.js"></script>
+  <script>
+    const { el, cfg } = PAF;
+    const WORKFLOW = "daily-shorts.yml";
+    const ACTIVE = new Set(["queued", "in_progress", "waiting", "pending", "requested"]);
+    const partsBody = document.getElementById("parts");
+    const runsBody = document.getElementById("runs");
+    const notice = document.getElementById("notice");
+    const retryDay = document.getElementById("retry-day");
+    let current = { entry: null, isoDate: "", tz: "local" };
+    let runs = [];
+
+    document.getElementById("repo-name").textContent = cfg.repo;
+    document.getElementById("footer").append("Reading ", el("code", {}, `${cfg.owner}/${cfg.repo}@${cfg.ref}`), " · ",
+      el("a", { href: PAF.repoUrl("/actions/workflows/" + WORKFLOW), rel: "noopener" }, "all runs on GitHub"));
+
+    function say(message, kind = "") {
+      notice.replaceChildren(message ? el("div", { class: `notice ${kind}` }, message) : "");
+    }
+
+    function command(isoDate, part) {
+      return `gh workflow run ${WORKFLOW} --repo ${cfg.owner}/${cfg.repo} --ref ${cfg.ref} -f date=${isoDate} -f part=${part}`;
+    }
+    function showCommand(isoDate, part) {
+      document.getElementById("gh-cmd").textContent = command(isoDate, part);
+    }
+
+    const tokenInput = document.getElementById("token");
+    tokenInput.value = PAF.token.get() ? "saved-token-hidden" : "";
+    document.getElementById("save-token").addEventListener("click", () => {
+      const value = tokenInput.value.trim();
+      if (!value || value === "saved-token-hidden") return say("Paste a token first.", "bad");
+      if (!PAF.persistent) return say("This browser blocks local storage, so the token can't be saved. Use the command instead.", "bad");
+      PAF.token.set(value);
+      tokenInput.value = "saved-token-hidden";
+      say("Token saved in this browser.", "ok");
+    });
+    document.getElementById("forget-token").addEventListener("click", () => {
+      PAF.token.clear();
+      tokenInput.value = "";
+      say("Token removed from this browser.", "ok");
+    });
+    document.getElementById("copy-cmd").addEventListener("click", async (event) => {
+      try { await navigator.clipboard.writeText(document.getElementById("gh-cmd").textContent); event.target.textContent = "Copied"; }
+      catch { event.target.textContent = "Copy failed"; }
+      setTimeout(() => (event.target.textContent = "Copy"), 1500);
+    });
+
+    async function dispatch(isoDate, part, button) {
+      showCommand(isoDate, part);
+      const token = PAF.token.get();
+      if (!token) {
+        say("Add a GitHub token under Retry access, or copy the command there and run it in a terminal.", "bad");
+        tokenInput.focus();
+        return;
+      }
+      if (button) button.disabled = true;
+      say(`Starting a run for ${isoDate} (${part})...`);
+      try {
+        const response = await fetch(PAF.api(`/actions/workflows/${WORKFLOW}/dispatches`), {
+          method: "POST",
+          headers: { Accept: "application/vnd.github+json", Authorization: `Bearer ${token}`,
+                     "X-GitHub-Api-Version": "2022-11-28", "Content-Type": "application/json" },
+          body: JSON.stringify({ ref: cfg.ref, inputs: { date: isoDate, part, upload: "true" } }),
+        });
+        if (response.status === 204) {
+          say(`Started ${isoDate} (${part}). Rendering and uploading take about 15-40 minutes; this page refreshes the run list.`, "ok");
+          setTimeout(() => loadRuns(true).then(() => renderParts()), 5000);
+        } else {
+          const detail = (await response.text()).slice(0, 240);
+          say(`GitHub refused the run (${response.status}). Check the token has Actions: Read and write on ${cfg.repo}. ${detail}`, "bad");
+          if (button) button.disabled = false;
+        }
+      } catch (error) {
+        say(`Could not reach GitHub: ${error.message}`, "bad");
+        if (button) button.disabled = false;
+      }
+    }
+
+    function runIsActiveFor(isoDate) {
+      return runs.some((run) => ACTIVE.has(run.status) &&
+        (run.display_title.includes(isoDate) || (run.event === "schedule" && isoDate === PAF.dayIn(current.tz, 1))));
+    }
+
+    async function renderParts() {
+      const { entry, isoDate, tz } = current;
+      document.getElementById("day-label").textContent = PAF.prettyDay(isoDate);
+      showCommand(isoDate, "all");
+      if (!entry) {
+        document.getElementById("series-title").textContent = "Nothing planned for this day";
+        partsBody.replaceChildren(el("tr", {}, el("td", { colspan: 5, class: "muted" }, "No calendar episodes on this day.")));
+        retryDay.disabled = true;
+        return;
+      }
+      const { series, month } = entry;
+      document.getElementById("series-title").textContent = series.series_title;
+      partsBody.replaceChildren(el("tr", {}, el("td", { colspan: 5, class: "muted" }, "Checking uploads...")));
+      const records = await Promise.all(series.episodes.map((ep) =>
+        PAF.getJSON(PAF.raw("automation-state", `uploaded/${ep.episode_id}.json`), { cacheSeconds: 30 }).catch(() => null)));
+      const today = PAF.dayIn(tz, 0);
+      const running = runIsActiveFor(isoDate);
+      // GitHub keeps only one queued run and cancels the older one, so start nothing while any run is active
+      const busy = runs.some((run) => ACTIVE.has(run.status));
+      if (busy && !running) say("Another run is in progress. Retry once it finishes, so GitHub doesn't cancel a queued run.");
+      let missing = 0;
+
+      partsBody.replaceChildren(...series.episodes.map((ep, i) => {
+        const record = records[i];
+        const slot = month.slots?.[ep.part];
+        let badge, publishes = slot ? `${slot.time} ${tz}` : "", action;
+        if (record?.youtube_video_id) {
+          badge = el("span", { class: "badge ok" }, "Uploaded");
+          if (record.request?.publish_at) publishes = PAF.prettyTime(record.request.publish_at);
+          action = el("a", { class: "btn secondary", href: `https://youtu.be/${record.youtube_video_id}`, rel: "noopener", target: "_blank" }, "Watch");
+        } else {
+          missing += 1;
+          const retry = el("button", { class: "btn", type: "button" }, isoDate > today ? "Render now" : "Retry");
+          retry.addEventListener("click", () => dispatch(isoDate, ep.part, retry));
+          if (running) {
+            badge = el("span", { class: "badge warn" }, "Running");
+            retry.disabled = true;
+          } else if (isoDate > today) {
+            badge = el("span", { class: "badge" }, "Upcoming");
+          } else {
+            badge = el("span", { class: "badge bad" }, "Not uploaded");
+          }
+          if (busy) retry.disabled = true;
+          action = retry;
+        }
+        return el("tr", {},
+          el("td", {}, el("strong", {}, ep.part.toUpperCase())),
+          el("td", {}, ep.episode_title),
+          el("td", { class: "small muted" }, publishes),
+          el("td", {}, badge),
+          el("td", { style: "text-align:right" }, action));
+      }));
+      retryDay.disabled = missing === 0 || busy;
+      retryDay.textContent = missing === 3 ? "Run this whole day" : "Retry missing videos";
+    }
+    retryDay.addEventListener("click", () => dispatch(current.isoDate, "all", retryDay));
+
+    async function loadRuns(fresh = false) {
+      try {
+        const data = await PAF.getJSON(PAF.api(`/actions/workflows/${WORKFLOW}/runs?per_page=15`),
+          { token: PAF.token.get(), cacheSeconds: fresh ? 0 : 20 });
+        runs = data?.workflow_runs || [];
+        if (!data) {
+          runsBody.replaceChildren(el("tr", {}, el("td", { colspan: 4, class: "muted" },
+            "No runs yet. The workflow runs from the main branch once the pull request is merged.")));
+          return;
+        }
+        if (!runs.length) {
+          runsBody.replaceChildren(el("tr", {}, el("td", { colspan: 4, class: "muted" }, "No runs yet.")));
+          return;
+        }
+        runsBody.replaceChildren(...runs.map((run) => {
+          const result = ACTIVE.has(run.status) ? ["warn", run.status.replace("_", " ")]
+            : run.conclusion === "success" ? ["ok", "success"] : ["bad", run.conclusion || run.status];
+          return el("tr", {},
+            el("td", { class: "small" }, PAF.prettyTime(run.created_at)),
+            el("td", {}, el("a", { href: run.html_url, rel: "noopener", target: "_blank" }, run.display_title)),
+            el("td", { class: "small muted" }, run.event === "schedule" ? "daily schedule" : "manual / retry"),
+            el("td", {}, el("span", { class: `badge ${result[0]}` }, result[1])));
+        }));
+      } catch (error) {
+        runsBody.replaceChildren(el("tr", {}, el("td", { colspan: 4, class: "muted" }, error.message)));
+      }
+    }
+
+    Promise.all([PAF.loadCalendar(), loadRuns()])
+      .then(([entries]) => {
+        if (!entries.length) throw new Error("The calendar folder has no month files yet.");
+        PAF.dayPicker(document.getElementById("picker"), entries, (entry, isoDate) => {
+          current = { entry, isoDate, tz: entries[0].month.timezone };
+          say("");
+          renderParts();
+        });
+      })
+      .catch((error) => {
+        document.getElementById("series-title").textContent = "Could not load the calendar";
+        say(error.message, "bad");
+      });
+  </script>
+</body>
+</html>

@@ -14,7 +14,7 @@ Flow per video:
 Every render is checked (video_check.py) and tried up to GENERATE_ATTEMPTS times before it counts as failed;
 the last attempt widens the stock-footage search.
 
-CLI: python -m orchestrator.generate [--dry-run] [--count N] [--topic ID] [--date YYYY-MM-DD]
+CLI: python -m orchestrator.generate [--dry-run] [--count N] [--topic ID] [--date YYYY-MM-DD [--part p1|p2|p3]]
 """
 from __future__ import annotations
 
@@ -286,7 +286,7 @@ def generate_one(
 
 def run(count: int | None = None, topic_id: str | None = None, dry_run: bool = False,
         settings: config.Settings | None = None, client: EngineClient | None = None,
-        llm=None, day: str | None = None, failed: list[str] | None = None) -> list[Path]:
+        llm=None, day: str | None = None, failed: list[str] | None = None, part: str | None = None) -> list[Path]:
     settings = settings or config.load()
     settings.require("generate", dry_run=dry_run)
     queue = load_queue(settings.queue_path)
@@ -300,10 +300,13 @@ def run(count: int | None = None, topic_id: str | None = None, dry_run: bool = F
             raise SystemExit(f"topic {topic_id!r} not found in {settings.queue_path}, the content calendar "
                              f"or planned series")
     elif day:
-        todo = [r for d, r in content_calendar.episodes(settings, defaults) if d == day]
+        todo = [r for d, r in content_calendar.episodes(settings, defaults)
+                if d == day and (not part or r.topic_id.endswith(f"-{part}"))]
         if not todo:
-            raise SystemExit(f"no content-calendar episodes on {day} in {settings.calendar_dir}")
-        todo = [r for r in todo if state.get(r.topic_id, {}).get("status") != "generated"]
+            raise SystemExit(f"no content-calendar episodes on {day}{f' ({part})' if part else ''} "
+                             f"in {settings.calendar_dir}")
+        uploaded = {p.stem for p in review.stage_dir(settings.output_dir, review.UPLOADED).glob("*.json")}
+        todo = [r for r in todo if r.topic_id not in uploaded and state.get(r.topic_id, {}).get("status") != "generated"]
     else:
         todo = select_topics(settings, queue, defaults, state,
                              count or settings.daily_generate_count, dry_run=dry_run, llm=llm)
@@ -339,11 +342,13 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--count", type=int, help="number of videos to generate (default DAILY_GENERATE_COUNT)")
     p.add_argument("--topic", help="generate one specific topic or episode id")
     p.add_argument("--date", help="generate every episode of this content-calendar day (YYYY-MM-DD)")
+    p.add_argument("--part", choices=["all", "p1", "p2", "p3"], default="all", help="with --date: only this part")
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args(argv)
     config.setup_logging(args.verbose)
     failed: list[str] = []
-    run(count=args.count, topic_id=args.topic, dry_run=args.dry_run, day=args.date, failed=failed)
+    run(count=args.count, topic_id=args.topic, dry_run=args.dry_run, day=args.date, failed=failed,
+        part=None if args.part == "all" else args.part)
     if failed:
         log.error("%d video(s) failed after retries: %s", len(failed), ", ".join(failed))
     return 1 if failed else 0

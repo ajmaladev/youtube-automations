@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy · Plot Armor Facts</title>
+  <meta name="description" content="How the Plot Armor Facts uploader uses and protects Google and YouTube data.">
+  <link rel="icon" href="assets/logo.png">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="inner">
+      <a class="brand" href="./"><img src="assets/logo.png" alt=""><span>Plot Armor <b>Facts</b></span></a>
+      <nav class="nav">
+        <a href="./">Home</a>
+        <a href="calendar.html">Content</a>
+        <a href="status.html">Status &amp; retry</a>
+        <a href="privacy.html" aria-current="page">Privacy</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <article class="card prose">
+      <h1>Privacy Policy</h1>
+      <p class="muted">Last updated: 11 September 2026</p>
+
+      <p>This policy explains how the <strong>Plot Armor Facts uploader</strong> (the "app") handles data. The app is a private tool
+        that the owner of the Plot Armor Facts YouTube channel uses to upload the channel's own videos. It is not offered to the
+        public and has no user accounts.</p>
+
+      <h2>What the app accesses</h2>
+      <ul>
+        <li>The app uses Google OAuth to request a single permission: <code>https://www.googleapis.com/auth/youtube.upload</code>,
+          which lets it upload videos to the YouTube channel of the Google account that signs in, the channel owner.</li>
+        <li>It uses this access only to upload the channel's videos and set their title, description, tags, privacy status,
+          scheduled publish time and the altered-or-synthetic-content disclosure.</li>
+        <li>The app does not read, collect or store any other data from YouTube or Google: no viewer data, comments, subscribers,
+          analytics, contacts or email.</li>
+      </ul>
+
+      <h2>How data is stored</h2>
+      <ul>
+        <li><strong>Sign-in token.</strong> The OAuth token is kept on the owner's own computer and in the owner's encrypted GitHub
+          Actions secrets, so the daily upload can run. It is never shared or published.</li>
+        <li><strong>Videos.</strong> Rendered videos are stored temporarily in the owner's GitHub Actions run and deleted
+          automatically after 14 days.</li>
+        <li><strong>Upload records.</strong> For each upload the app keeps a small record (the video's ID, title, description and
+          upload time) in the owner's code repository, so the same video is never uploaded twice.</li>
+      </ul>
+
+      <h2>Sharing</h2>
+      <p>The app does not sell, rent, share or transfer Google user data to anyone, and does not use it for advertising.
+        No data is used to train AI models.</p>
+
+      <h2>YouTube API Services and Google</h2>
+      <p>The app uses YouTube API Services. By using it, you agree to the
+        <a href="https://www.youtube.com/t/terms" rel="noopener">YouTube Terms of Service</a>. Google's handling of data is described
+        in the <a href="https://policies.google.com/privacy" rel="noopener">Google Privacy Policy</a>.</p>
+      <p>The app's use of information received from Google APIs adheres to the
+        <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener">Google API Services User Data Policy</a>,
+        including the Limited Use requirements.</p>
+
+      <h2>Removing access</h2>
+      <p>The account owner can revoke the app's access at any time at
+        <a href="https://myaccount.google.com/permissions" rel="noopener">myaccount.google.com/permissions</a>, and can delete the
+        stored token and upload records from the repository and its GitHub secrets.</p>
+
+      <h2>These web pages</h2>
+      <p>This website is hosted on GitHub Pages and sets no cookies and no analytics. The owner tools (content calendar and status
+        pages) read public files from GitHub directly in your browser; a GitHub token entered on the status page is saved only in
+        that browser. GitHub may log visits as described in the
+        <a href="https://docs.github.com/site-policy/privacy-policies/github-general-privacy-statement" rel="noopener">GitHub Privacy Statement</a>.</p>
+
+      <h2>Children</h2>
+      <p>The app and this website are not directed to children under 13, and the channel's videos are not made for kids.</p>
+
+      <h2>Changes and contact</h2>
+      <p>If this policy changes, the new version is posted on this page with a new date. Questions can be raised by opening an
+        issue at <a href="https://github.com/ajmaladev/youtube-automations/issues" rel="noopener">github.com/ajmaladev/youtube-automations/issues</a>.</p>
+    </article>
+  </main>
+
+  <footer>
+    © 2026 Plot Armor Facts · <a href="./">Home</a> · <a href="https://www.youtube.com/t/terms" rel="noopener">YouTube Terms of Service</a><br>
+    YouTube is a trademark of Google LLC. This site is not affiliated with or endorsed by YouTube or Google.
+  </footer>
+</body>
+</html>

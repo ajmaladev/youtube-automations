@@ -615,7 +615,7 @@ Your PC must be on, with Docker Desktop running, at that time.
 `.github/workflows/daily-shorts.yml` runs every day at 16:00 UTC:
 
 1. **Render:** runs the tests and calendar checks, starts the video engine (pinned version, cached in GitHub's container registry), renders tomorrow's 3 episodes, checks every MP4, and retries a failed render up to 3 times.
-2. **Upload:** as soon as all 3 videos pass the checks, uploads them automatically, private with scheduled publish times (09:00, 15:00 and 21:00 in the calendar's timezone), and records every upload on the `automation-state` branch so a re-run never posts twice. No approval is needed; the videos stay downloadable from the run page for 14 days. If any video fails to render, nothing from that day is uploaded.
+2. **Upload:** as soon as all 3 videos pass the checks, uploads them automatically, private with scheduled publish times (09:00, 15:00 and 21:00 in the calendar's timezone), and records every upload on the `automation-state` branch so a re-run never posts twice. No approval is needed; the videos stay downloadable from the run page for 14 days. Videos that render are uploaded even if another part fails; the failed one shows as **Not uploaded** on the status page, where one click retries it.
 
 One-time setup:
 
@@ -637,6 +637,26 @@ One-time setup:
 > - YouTube keeps videos uploaded by **unverified API projects private**, even with a scheduled time. Request a YouTube API audit in Google Cloud so they can go public.
 > - GitHub pauses scheduled workflows in public repositories after 60 days without activity. Re-enable it on the **Actions** tab if that happens.
 > - Add next month's `topics/calendar/YYYY-MM.json` before the month starts; days without a calendar are skipped with a warning.
+
+### Step 9: Owner pages (GitHub Pages)
+
+The `docs/` folder is a small website:
+
+| Page | What it's for |
+|---|---|
+| `index.html` | Home page for the channel and the uploader app (use it as the Google OAuth **Application home page**) |
+| `privacy.html` | Privacy policy (use it as the Google OAuth **Privacy policy link** and in the YouTube API audit) |
+| `calendar.html` | Pick Yesterday / Today / Tomorrow or any date and read that day's story, scripts, footage terms and raw JSON |
+| `status.html` | See whether each part was uploaded, follow recent runs, and **retry** a failed video or a whole day |
+
+1. After merging to `main`: **Settings → Pages → Build and deployment → Deploy from a branch → `main` / `/docs` → Save**.
+   The site appears at `https://<your-user>.github.io/youtube-automations/`.
+2. In Google Cloud **Google Auth Platform → Branding**, set the home page to that URL, the privacy policy to `.../privacy.html`, and add `<your-user>.github.io` under **Authorised domains**. Remove the logo, save, then **Audience → Publish app**.
+3. To retry from `status.html`, create a [fine-grained token](https://github.com/settings/personal-access-tokens/new) for this repository only with **Actions: Read and write**, and paste it on the page (it stays in that browser). Or run the same retry from a terminal:
+   ```bash
+   gh workflow run daily-shorts.yml -f date=2026-10-05 -f part=p2
+   ```
+   Pages read the `main` branch; add `?ref=<branch>` to a page URL to read another branch.
 
 ### ⚡ Command cheat sheet
 

@@ -381,7 +381,8 @@ def past_series(settings: config.Settings) -> list[dict[str, str]]:
 
 
 def _expand(paths: list[Path]) -> list[Path]:
-    return [f for p in paths for f in (sorted(p.glob("*.json")) if p.is_dir() else [p])]
+    return [f for p in paths for f in (sorted(p.glob("*.json")) if p.is_dir() else [p])
+            if not f.name.endswith(".schema.json")]
 
 
 def main(argv: list[str] | None = None) -> int:

@@ -6,7 +6,8 @@
 - status.containsSyntheticMedia = True (altered/synthetic content disclosure)
 - privacyStatus "private" by default; "public" is refused
 - YOUTUBE_SCHEDULE_PUBLISH=true: approved content-calendar episodes also get status.publishAt, so the video
-  stays private until its slot (p1 morning, p2 afternoon, p3 night) and YouTube publishes it then
+  stays private until its slot (p1 morning, p2 afternoon, p3 night) and YouTube publishes it then; a late or
+  retried upload whose slot has passed is scheduled to publish a few minutes after it finishes
 - Quota ledger keyed by Pacific-time date (quota resets at midnight PT):
   YOUTUBE_UPLOAD_UNIT_COST per attempt against YOUTUBE_DAILY_QUOTA_UNITS,
   and a hard cap of 5 upload attempts/day regardless of units
@@ -55,6 +56,7 @@ RETRIABLE_STATUS = {500, 502, 503, 504}
 RETRIABLE_EXCEPTIONS = (httplib2.HttpLib2Error, ConnectionError, TimeoutError, OSError)
 QUOTA_REASONS = {"quotaExceeded", "uploadLimitExceeded", "dailyLimitExceeded", "rateLimitExceeded"}
 MIN_SCHEDULE_LEAD = timedelta(minutes=15)  # publishAt must still be in the future when the upload finishes
+LATE_PUBLISH_DELAY = timedelta(minutes=5)  # extra margin for a late upload whose slot has already passed
 
 
 class QuotaExceededError(RuntimeError):
@@ -216,8 +218,9 @@ def _schedule(req: VideoRequest, privacy: str, now: datetime) -> str | None:
         log.warning("%s: YouTube only schedules private videos; not scheduling", req.topic_id)
         return None
     if when <= now + MIN_SCHEDULE_LEAD:
-        log.warning("%s: slot %s has passed; uploading private without a schedule", req.topic_id, req.publish_at)
-        return None
+        when = now + MIN_SCHEDULE_LEAD + LATE_PUBLISH_DELAY
+        log.info("%s: slot %s has passed (late or retried upload); publishing at %s instead", req.topic_id,
+                 req.publish_at, when.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
     return when.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 

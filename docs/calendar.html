@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Content Calendar · Plot Armor Facts</title>
+  <link rel="icon" href="assets/logo.png">
+  <link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="inner">
+      <a class="brand" href="./"><img src="assets/logo.png" alt=""><span>Plot Armor <b>Facts</b></span></a>
+      <nav class="nav">
+        <a href="./">Home</a>
+        <a href="calendar.html" aria-current="page">Content</a>
+        <a href="status.html">Status &amp; retry</a>
+        <a href="privacy.html">Privacy</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <h1>Content calendar</h1>
+    <p class="muted" id="subtitle">The story planned for each day, part by part.</p>
+    <div class="controls" id="picker"></div>
+    <div id="content"><div class="card skeleton">Loading the calendar...</div></div>
+  </main>
+
+  <footer id="footer"></footer>
+
+  <script src="assets/site.js"></script>
+  <script>
+    const { el } = PAF;
+    const content = document.getElementById("content");
+    const SLOT_LABEL = { p1: "Part 1", p2: "Part 2", p3: "Part 3" };
+
+    function renderEmpty(isoDate) {
+      content.replaceChildren(el("div", { class: "card" },
+        el("h3", {}, `Nothing planned for ${PAF.prettyDay(isoDate)}`),
+        el("p", { class: "muted" }, "Pick another day, or write that month with /plan-month in Claude Code.")));
+    }
+
+    function partCard(ep, month) {
+      const slot = month.slots?.[ep.part];
+      return el("div", { class: "card" },
+        el("div", { class: "part-top" },
+          el("span", { class: "badge accent" }, SLOT_LABEL[ep.part] || ep.part),
+          el("span", { class: "muted small" }, slot ? `${slot.label} · ${slot.time} (${month.timezone})` : "")),
+        el("h3", {}, ep.episode_title),
+        el("p", { class: "muted small" }, ep.youtube_title),
+        el("p", { class: "script" }, ep.script),
+        ep.cliffhanger ? el("div", { class: "callout" }, el("strong", {}, "Cliffhanger: "), ep.cliffhanger) : null,
+        el("h4", {}, `Footage, in order (${ep.video_terms.length} clips)`),
+        el("div", { class: "chips" }, ep.video_terms.map((t, i) => el("span", { class: "chip" }, `${i + 1}. ${t}`))),
+        el("h4", {}, "Description"),
+        el("p", { class: "small" }, ep.description),
+        el("h4", {}, "Tags"),
+        el("div", { class: "chips" }, ep.tags.map((t) => el("span", { class: "chip" }, `#${t}`))));
+    }
+
+    function renderSeries(entry, isoDate) {
+      if (!entry) return renderEmpty(isoDate);
+      const { series: s, month } = entry;
+      const rawJson = JSON.stringify(s, null, 2);
+      const copy = el("button", { class: "btn secondary", type: "button" }, "Copy JSON");
+      copy.addEventListener("click", async () => {
+        try { await navigator.clipboard.writeText(rawJson); copy.textContent = "Copied"; }
+        catch { copy.textContent = "Copy failed"; }
+        setTimeout(() => (copy.textContent = "Copy JSON"), 1500);
+      });
+      content.replaceChildren(el("div", { class: "stack" },
+        el("div", { class: "card" },
+          el("div", { class: "series-head" },
+            el("div", {},
+              el("p", { class: "muted small", style: "margin:0" }, PAF.prettyDay(s.date)),
+              el("h1", {}, s.series_title),
+              el("p", { class: "muted", style: "margin:0" }, s.throughline)),
+            el("span", { class: "badge" }, s.category))),
+        el("div", { class: "grid three" }, s.episodes.map((ep) => partCard(ep, month))),
+        el("div", { class: "card" },
+          el("h3", {}, "Sources"),
+          el("ul", { class: "sources small" }, s.sources.map((src) =>
+            el("li", {}, el("a", { href: src.url, rel: "noopener", target: "_blank" }, src.title))))),
+        el("details", { class: "card" },
+          el("summary", {}, "Raw JSON"),
+          el("div", { style: "margin-top:12px" }, copy),
+          el("pre", { class: "json" }, rawJson))));
+    }
+
+    document.getElementById("footer").append(
+      "Reading ", PAF.el("code", {}, `${PAF.cfg.owner}/${PAF.cfg.repo}@${PAF.cfg.ref}`), " · ",
+      PAF.el("a", { href: PAF.repoUrl("/tree/" + PAF.cfg.ref + "/topics/calendar"), rel: "noopener" }, "calendar files on GitHub"));
+
+    PAF.loadCalendar()
+      .then((entries) => {
+        if (!entries.length) throw new Error("The calendar folder has no month files yet.");
+        const picker = PAF.dayPicker(document.getElementById("picker"), entries, renderSeries);
+        document.getElementById("subtitle").textContent =
+          `${entries.length} days planned, from ${PAF.prettyDay(entries[0].series.date, "short")} to ` +
+          `${PAF.prettyDay(entries[entries.length - 1].series.date, "short")} · times in ${picker.timeZone}`;
+      })
+      .catch((error) => content.replaceChildren(el("div", { class: "notice bad" }, error.message)));
+  </script>
+</body>
+</html>

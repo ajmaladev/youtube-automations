@@ -186,6 +186,6 @@ def test_upload_schedules_slot_only_when_enabled_private_and_in_future():
     assert "publishAt" not in upload.build_body(req, now=now)["status"]
     assert upload.build_body(req, schedule_publish=True, now=now)["status"]["publishAt"] == "2026-10-01T09:00:00Z"
     late = datetime(2026, 10, 1, 8, 50, tzinfo=timezone.utc)
-    assert "publishAt" not in upload.build_body(req, schedule_publish=True, now=late)["status"]
+    assert upload.build_body(req, schedule_publish=True, now=late)["status"]["publishAt"] == "2026-10-01T09:10:00Z"
     unlisted = VideoRequest(topic_id="e", subject="s", publish_at="2026-10-01T09:00:00Z", privacy_status="unlisted")
     assert "publishAt" not in upload.build_body(unlisted, schedule_publish=True, now=now)["status"]

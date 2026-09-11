@@ -102,6 +102,18 @@ def test_calendar_day_render_reports_parts_that_never_render(retry_settings, mon
     assert generate.load_state(settings)["2026-10-01-reef-p2"]["status"] == "failed"
 
 
+def test_calendar_day_render_can_pick_one_part_and_skips_uploaded_ones(retry_settings):
+    settings = retry_settings
+    write(settings.calendar_dir, "2026-10.json", make_month(["2026-10-01"]))
+    (review.stage_dir(settings.output_dir, review.UPLOADED) / "2026-10-01-reef-p1.json").write_text("{}")
+    client, _ = client_for(settings, [DONE])
+    assert [p.name for p in generate.run(day="2026-10-01", part="p2", settings=settings, client=client)] == [
+        "2026-10-01-reef-p2.mp4"]
+    client, _ = client_for(settings, [DONE])  # p1 is already on YouTube and p2 was just rendered
+    assert [p.name for p in generate.run(day="2026-10-01", settings=settings, client=client)] == [
+        "2026-10-01-reef-p3.mp4"]
+
+
 def test_calendar_day_without_episodes_stops(retry_settings):
     with pytest.raises(SystemExit, match="no content-calendar episodes"):
         generate.run(day="2026-10-01", settings=retry_settings, client=object())

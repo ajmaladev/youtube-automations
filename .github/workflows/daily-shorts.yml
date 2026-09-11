@@ -1,7 +1,10 @@
 name: Daily Shorts
+run-name: "${{ github.event_name == 'schedule' && 'Daily Shorts - tomorrow (scheduled)' || format('Daily Shorts - {0} {1}', inputs.date || 'tomorrow', inputs.part || 'all') }}"
 
 # Renders the next day's 3 content-calendar episodes, checks every video, then uploads them automatically -
 # private, with a scheduled publish time (p1 morning, p2 afternoon, p3 night). No approval step.
+# Videos that render are uploaded even if another part fails; retry a failed one from docs/status.html
+# or with: gh workflow run daily-shorts.yml -f date=YYYY-MM-DD -f part=p2
 # One-time setup: README -> Usage -> "Step 8: Run it on GitHub Actions".
 
 on:
@@ -17,6 +20,11 @@ on:
         description: "Upload to YouTube after rendering"
         type: boolean
         default: true
+      part:
+        description: "Which video: all, p1, p2 or p3"
+        type: choice
+        options: [all, p1, p2, p3]
+        default: all
 
 concurrency:
   group: daily-shorts
@@ -38,7 +46,9 @@ jobs:
       packages: write # caches the video engine image in GHCR
     outputs:
       day: ${{ steps.day.outputs.day }}
+      part: ${{ steps.day.outputs.part }}
       skip: ${{ steps.day.outputs.skip }}
+      rendered: ${{ steps.render.outputs.rendered }}
     steps:
       - uses: actions/checkout@v7
 
@@ -65,23 +75,30 @@ jobs:
         id: day
         env:
           INPUT_DATE: ${{ inputs.date }}
+          INPUT_PART: ${{ inputs.part || 'all' }}
         run: |
           day="${INPUT_DATE:-$(TZ="$CALENDAR_TIMEZONE" date -d tomorrow +%F)}"
           if ! [[ "$day" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
             echo "::error::date must be YYYY-MM-DD, got '$day'"
             exit 1
           fi
+          if ! [[ "$INPUT_PART" =~ ^(all|p1|p2|p3)$ ]]; then
+            echo "::error::part must be all, p1, p2 or p3, got '$INPUT_PART'"
+            exit 1
+          fi
           echo "day=$day" >> "$GITHUB_OUTPUT"
+          echo "part=$INPUT_PART" >> "$GITHUB_OUTPUT"
           bash scripts/ci/state.sh restore
           episodes=$(uv run python -m orchestrator.content_calendar show --date "$day")
           if grep -q "^no calendar episodes" <<< "$episodes"; then
             echo "::warning::No content-calendar episodes for $day. Add topics/calendar/${day:0:7}.json."
             echo "skip=true" >> "$GITHUB_OUTPUT"
-          elif [ "$(find output/uploaded -name "$day-*.json" | wc -l)" -ge 3 ]; then
-            echo "All episodes for $day are already uploaded." >> "$GITHUB_STEP_SUMMARY"
+          elif { [ "$INPUT_PART" = all ] && [ "$(find output/uploaded -name "$day-*.json" | wc -l)" -ge 3 ]; } ||
+               { [ "$INPUT_PART" != all ] && [ -n "$(find output/uploaded -name "$day-*-$INPUT_PART.json")" ]; }; then
+            echo "Already uploaded: $day ($INPUT_PART)." >> "$GITHUB_STEP_SUMMARY"
             echo "skip=true" >> "$GITHUB_OUTPUT"
           else
-            { echo "### Rendering $day"; echo '```'; printf '%s\n' "$episodes"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            { echo "### Rendering $day ($INPUT_PART)"; echo '```'; printf '%s\n' "$episodes"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -109,10 +126,12 @@ jobs:
           IMAGE: ${{ steps.engine.outputs.image }}
         run: bash scripts/ci/start-engine.sh "$IMAGE"
 
-      - name: Render ${{ steps.day.outputs.day }}
+      - name: Render ${{ steps.day.outputs.day }} (${{ steps.day.outputs.part }})
+        id: render
         if: steps.day.outputs.skip == 'false'
         env:
           DAY: ${{ steps.day.outputs.day }}
+          PART: ${{ steps.day.outputs.part }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
           OLLAMA_HOST: http://127.0.0.1:11434 # required by the config check; calendar scripts never call an LLM
           ENGINE_BASE_URL: http://127.0.0.1:8080
@@ -121,17 +140,22 @@ jobs:
           GENERATE_RETRY_DELAY_S: "60"
           ENGINE_GENERATE_TIMEOUT_S: "2700"
           VERIFY_VIDEOS: "true"
-        run: uv run python -m orchestrator.generate --date "$DAY"
+        run: |
+          set +e
+          uv run python -m orchestrator.generate --date "$DAY" --part "$PART"
+          code=$?
+          echo "rendered=$(find output/pending -name '*.mp4' 2>/dev/null | wc -l)" >> "$GITHUB_OUTPUT"
+          exit $code
 
       - name: Engine log
         if: failure() && steps.engine.outcome == 'success'
         run: docker logs --tail 400 yta-engine
 
       - name: Save the videos
-        if: steps.day.outputs.skip == 'false'
+        if: always() && steps.render.outputs.rendered != '' && steps.render.outputs.rendered != '0'
         uses: actions/upload-artifact@v7
         with:
-          name: shorts-${{ steps.day.outputs.day }}
+          name: shorts-${{ steps.day.outputs.day }}-${{ steps.day.outputs.part }}
           path: output/pending/
           if-no-files-found: error
           retention-days: 14
@@ -139,7 +163,10 @@ jobs:
 
   upload:
     needs: render
-    if: needs.render.outputs.skip == 'false' && (github.event_name == 'schedule' || inputs.upload)
+    # runs even when one part failed, so the videos that did render still go up
+    if: >-
+      always() && needs.render.outputs.skip == 'false' && needs.render.outputs.rendered != '' &&
+      needs.render.outputs.rendered != '0' && (github.event_name == 'schedule' || inputs.upload)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     permissions:
@@ -155,7 +182,7 @@ jobs:
       - name: Download the checked videos # every video already passed the render checks
         uses: actions/download-artifact@v8
         with:
-          name: shorts-${{ needs.render.outputs.day }}
+          name: shorts-${{ needs.render.outputs.day }}-${{ needs.render.outputs.part }}
           path: output/approved/
 
       - name: YouTube credentials
