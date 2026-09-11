@@ -22,6 +22,19 @@ defaults:
   made_for_kids: false
   category_id: "27" # 27 = Education, 24 = Entertainment, 28 = Science & Tech
   tags: [shorts, plotarmorfacts]
+  # Shorts karaoke captions: short phrase on screen, spoken word highlighted yellow
+  subtitle_enabled: true
+  subtitle_display_mode: karaoke          # sentence | word_by_word | karaoke
+  subtitle_animation: none
+  subtitle_position: custom               # lower-third like CapCut Shorts
+  custom_position: 78                     # % from top (matches typical Shorts safe area)
+  font_name: BeVietnamPro-Bold.ttf
+  font_size: 72
+  text_fore_color: "#FFFFFF"              # inactive words
+  subtitle_highlight_color: "#FFFF00"     # active spoken word
+  karaoke_words_per_line: 4               # short punchy phrases
+  stroke_color: "#000000"
+  stroke_width: 5.0
 
 topics:
   # --- comics lore ---
