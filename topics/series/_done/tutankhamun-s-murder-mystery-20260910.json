@@ -1,0 +1,218 @@
+{
+  "series_id": "tutankhamun-s-murder-mystery-20260910",
+  "series_title": "Tutankhamun's Murder Mystery",
+  "throughline": "Was Tutankhamun's death a murder, and if so, who was responsible?",
+  "subject": "True story of the young pharaoh's suspicious death and its cover-up",
+  "category": "real-life-legends",
+  "entities": [
+    "Tutankhamun",
+    "Ay",
+    "Horemheb",
+    "Ancient Egypt"
+  ],
+  "keywords": [
+    "ancient history",
+    "pharaohs",
+    "mystery",
+    "egyptology",
+    "royalty"
+  ],
+  "planned_at": "2026-09-10T22:38:38+00:00",
+  "writer": "ollama/llama3.1",
+  "researcher": "ollama/llama3.1 (no web)",
+  "fact_checker": "ollama/llama3.1 (against sourced facts)",
+  "outline": [
+    {
+      "part": 1,
+      "title": "The Young King's Troubled Reign",
+      "beats": [
+        "Tutankhamun was just 9 or 10 years old when he ascended to the throne in 1332 BCE.",
+        "His father, Akhenaten, had introduced radical reforms that alienated the priestly class.",
+        "Tutankhamun's health was poor, with a club foot and severely deformed spine.",
+        "He married his half-sister, Ankhesenamun, to secure the throne.",
+        "But as his reign continued, Tutankhamun's health worsened, leading to concerns about his ability to rule."
+      ],
+      "cliffhanger": "Would Tutankhamun's poor health be his downfall?"
+    },
+    {
+      "part": 2,
+      "title": "The Mysterious Death",
+      "beats": [
+        "Tutankhamun's death occurred around 1323 BCE, during a period of social and economic upheaval.",
+        "The tomb of Tutankhamun was discovered with over 5,000 artifacts, including the iconic golden funerary mask.",
+        "The mummy was found with a severe blow to the head, raising suspicions of murder.",
+        "Ay, a high-ranking official, was accused of involvement in Tutankhamun's death."
+      ],
+      "cliffhanger": "Was Ay responsible for Tutankhamun's murder, or was it something more complex?"
+    },
+    {
+      "part": 3,
+      "title": "The Consequences of the Pharaoh's Death",
+      "beats": [
+        "Tutankhamun's death led to a period of instability in Egypt, with Ay and Horemheb vying for power.",
+        "Horemheb eventually became pharaoh and implemented reforms to restore traditional Egyptian values.",
+        "The truth about Tutankhamun's death, and the motives behind it, remain shrouded in mystery."
+      ],
+      "cliffhanger": ""
+    }
+  ],
+  "facts": [
+    {
+      "claim": "Tutankhamun was the 12th pharaoh of the 18th dynasty of Ancient Egypt.",
+      "source": ""
+    },
+    {
+      "claim": "He ascended to the throne at the age of 9 or 10, around 1332 BCE.",
+      "source": ""
+    },
+    {
+      "claim": "Tutankhamun's father was Akhenaten, a pharaoh who introduced radical changes to Egyptian religion.",
+      "source": ""
+    },
+    {
+      "claim": "Akhenaten's reforms, including the introduction of monotheistic worship of Aten, were met with opposition from the Egyptian priestly class.",
+      "source": ""
+    },
+    {
+      "claim": "Tutankhamun's mother was Kiya, a minor wife of Akhenaten.",
+      "source": ""
+    },
+    {
+      "claim": "Tutankhamun married his half-sister, Ankhesenamun, who was also the daughter of Akhenaten.",
+      "source": ""
+    },
+    {
+      "claim": "The young pharaoh's health was poor, and he suffered from a range of ailments, including a club foot and a severely deformed spine.",
+      "source": ""
+    },
+    {
+      "claim": "Tutankhamun's death occurred around 1323 BCE, during a period of significant social and economic upheaval in Egypt.",
+      "source": ""
+    },
+    {
+      "claim": "The tomb of Tutankhamun, KV62, was discovered by Howard Carter in 1922.",
+      "source": "https://www.britannica.com/biography/Howard-Carter"
+    },
+    {
+      "claim": "The tomb contained over 5,000 artifacts, including the golden funerary mask that has become an iconic symbol of ancient Egypt.",
+      "source": ""
+    },
+    {
+      "claim": "The cause of Tutankhamun's death is still debated among historians and archaeologists, with theories including murder, malaria, and bone cancer.",
+      "source": ""
+    },
+    {
+      "claim": "The mummy of Tutankhamun was found with a severe blow to the head, which some have interpreted as evidence of murder.",
+      "source": ""
+    },
+    {
+      "claim": "Ay, a high-ranking official who served as regent for Tutankhamun, was accused of being involved in the pharaoh's death.",
+      "source": ""
+    },
+    {
+      "claim": "Tutankhamun's death led to a brief period of instability in Egypt, during which Ay and then Horemheb, a military general, vied for power.",
+      "source": ""
+    },
+    {
+      "claim": "Horemheb eventually became pharaoh and implemented a number of reforms aimed at restoring traditional Egyptian values and suppressing Akhenaten's legacy.",
+      "source": ""
+    }
+  ],
+  "misconceptions": [
+    "Tutankhamun was murdered by his stepmother, Nefertiti.",
+    "Tutankhamun's tomb was discovered by a treasure hunter, rather than the official excavation team led by Howard Carter.",
+    "The golden funerary mask was found on Tutankhamun's face, rather than being placed on his mummy after excavation."
+  ],
+  "fact_check": [
+    {
+      "part": 1,
+      "unsupported": [
+        "Tutankhamun, the 12th pharaoh of the 18th dynasty, ascended to the throne at an astonishingly young age.",
+        "His father's legacy of change weighed heavily on him."
+      ]
+    },
+    {
+      "part": 2,
+      "unsupported": [
+        "Tutankhamun's death was not just a tragic loss, but a calculated move.",
+        "The strain on his body was immense, and the pressure from the priestly class to restore traditional Egyptian values was mounting.",
+        "The tomb of Tutankhamun was discovered with over 5,000 artifacts, including the iconic golden funerary mask."
+      ]
+    },
+    {
+      "part": 3,
+      "unsupported": [
+        "Was Tutankhamun's death a calculated move for power?",
+        "The loss of Tutankhamun led to a period of instability in Egypt, with Ay and Horemheb vying for power.",
+        "Horemheb's rise to power was a direct result of Tutankhamun's death, which had far-reaching consequences for the kingdom.",
+        "The debate surrounding Tutankhamun's death continues to this day, with theories ranging from murder to natural causes."
+      ]
+    }
+  ],
+  "episodes": [
+    {
+      "part": 1,
+      "title": "Tutankhamun's Murder Mystery Part 1",
+      "hook": "Tutankhamun, just 9 or 10 years old, became pharaoh.",
+      "script": "Tutankhamun, just 9 or 10 years old, became pharaoh. His father, Akhenaten, had introduced radical reforms that shook the Egyptian priestly class. Tutankhamun's own health was poor, with a club foot and severely deformed spine. He married his half-sister, Ankhesenamun, to secure the throne. But as his reign continued, concerns grew about his ability to rule. His poor health was a significant concern. Could Tutankhamun's fragile health be the key to unraveling the mystery of his death? Would Tutankhamun's poor health be his downfall? Follow for Part 2.",
+      "cliffhanger": "Would Tutankhamun's poor health be his downfall?",
+      "video_terms": [
+        "Pharaoh's health issues",
+        "Young pharaoh's reign",
+        "Egyptian politics",
+        "Mysterious death"
+      ],
+      "description": "Uncover the truth behind Tutankhamun's mysterious death, which shook ancient Egypt.",
+      "tags": [
+        "tutankhamun",
+        "ancient egypt",
+        "pharaoh",
+        "murder mystery",
+        "history"
+      ]
+    },
+    {
+      "part": 2,
+      "title": "Tutankhamun's Murder Mystery (Part 2)",
+      "hook": "Tutankhamun's death was not just a tragic loss, but a calculated move.",
+      "script": "Tutankhamun's death occurred around 1323 BCE, during a period of significant social and economic upheaval in Egypt. His poor health was a growing concern, but was it the only reason for his downfall? Tutankhamun's marriage to his half-sister, Ankhesenamun, was also seen as a desperate attempt to secure the throne. But what really happened to him? The mummy of Tutankhamun was found with a severe blow to the head, which some have interpreted as evidence of murder. Ay, a high-ranking official, was accused of involvement in Tutankhamun's death. Was he the mastermind behind the young pharaoh's demise, or was it something more complex? Follow for Part 3.",
+      "cliffhanger": "Was Ay responsible for Tutankhamun's murder, or was it something more complex?",
+      "video_terms": [
+        "tomb discovery",
+        "mummy secrets",
+        "pharaohs of the past",
+        "egyptian history"
+      ],
+      "description": "Unravel the mystery of Tutankhamun's death in this 3-part series.",
+      "tags": [
+        "tutankhamun",
+        "ancient egypt",
+        "mummy",
+        "pharaoh",
+        "murder",
+        "mystery",
+        "history"
+      ]
+    },
+    {
+      "part": 3,
+      "title": "Tutankhamun's Murder Mystery: The Consequences",
+      "hook": "Was Tutankhamun's death a calculated move for power?",
+      "script": "Tutankhamun's death marked a turning point in Egyptian history. As we left off, Ay was accused of involvement in the young pharaoh's demise. But was he the mastermind behind the murder, or was it something more complex? Tutankhamun's death led to a brief period of instability in Egypt, during which Ay and then Horemheb, a military general, vied for power. Horemheb eventually became pharaoh and implemented a number of reforms aimed at restoring traditional Egyptian values and suppressing Akhenaten's legacy. The truth about Tutankhamun's death remains shrouded in mystery, but one thing is clear: his demise had a profound impact on Egyptian history. Subscribe to Plot Armor Facts for more videos.",
+      "cliffhanger": "",
+      "video_terms": [
+        "mysterious death",
+        "egyptian history",
+        "city skyline at night"
+      ],
+      "description": "Uncover the truth behind Tutankhamun's mysterious death and its far-reaching consequences for Egypt.",
+      "tags": [
+        "tutankhamun",
+        "ancient egypt",
+        "murder mystery",
+        "horemheb",
+        "egyptian history"
+      ]
+    }
+  ]
+}

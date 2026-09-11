@@ -72,12 +72,15 @@ class Settings:
             if self.story_llm_provider in keys and not keys[self.story_llm_provider][1]:
                 missing.append(keys[self.story_llm_provider][0])
         elif stage == "upload":
-            if not self.youtube_client_secrets_path:
-                missing.append("YOUTUBE_CLIENT_SECRETS_PATH")
-            elif not Path(self.youtube_client_secrets_path).is_file():
-                missing.append(
-                    f"YOUTUBE_CLIENT_SECRETS_PATH (file not found: {self.youtube_client_secrets_path})"
-                )
+            has_secrets_env = bool(
+                (os.environ.get("YOUTUBE_CLIENT_SECRETS_JSON") or os.environ.get("CLIENT_SECRETS_JSON") or "").strip()
+            )
+            secrets_ok = (
+                has_secrets_env
+                or (self.youtube_client_secrets_path and Path(self.youtube_client_secrets_path).is_file())
+            )
+            if not secrets_ok:
+                missing.append("YOUTUBE_CLIENT_SECRETS_PATH (or YOUTUBE_CLIENT_SECRETS_JSON)")
         elif stage != "review":
             raise ValueError(f"unknown stage {stage!r}")
         return missing

@@ -176,9 +176,12 @@ def next_topics(queue: list[VideoRequest], state: dict[str, Any], count: int) ->
 
 
 def select_topics(settings: config.Settings, queue: list[VideoRequest], defaults: dict[str, Any],
-                  state: dict[str, Any], count: int, dry_run: bool = False, llm=None) -> list[VideoRequest]:
-    """Manual queue first, then unfinished series episodes, then brand-new series."""
-    todo = next_topics(queue, state, count)
+                  state: dict[str, Any], count: int, dry_run: bool = False, llm=None,
+                  series_only: bool = False) -> list[VideoRequest]:
+    """Manual queue first (unless series_only), then unfinished series episodes, then brand-new series."""
+    todo: list[VideoRequest] = []
+    if not series_only:
+        todo = next_topics(queue, state, count)
     if len(todo) < count:
         todo += story.pending_episodes(settings, state, defaults)[: count - len(todo)]
     planned = 0
@@ -239,7 +242,7 @@ def generate_one(
 
 def run(count: int | None = None, topic_id: str | None = None, dry_run: bool = False,
         settings: config.Settings | None = None, client: EngineClient | None = None,
-        llm=None) -> list[Path]:
+        llm=None, series_only: bool = False) -> list[Path]:
     settings = settings or config.load()
     settings.require("generate", dry_run=dry_run)
     queue = load_queue(settings.queue_path)
@@ -251,7 +254,8 @@ def run(count: int | None = None, topic_id: str | None = None, dry_run: bool = F
             raise SystemExit(f"topic {topic_id!r} not found in {settings.queue_path} or planned series")
     else:
         todo = select_topics(settings, queue, defaults, state,
-                             count or settings.daily_generate_count, dry_run=dry_run, llm=llm)
+                             count or settings.daily_generate_count, dry_run=dry_run, llm=llm,
+                             series_only=series_only)
     if not todo:
         log.info("nothing to generate (queue done, no unfinished episodes, and no new series planned)")
         return []

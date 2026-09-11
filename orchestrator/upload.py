@@ -146,7 +146,17 @@ def _save_token(creds: Credentials, path: Path) -> None:
 def get_credentials(settings: config.Settings, interactive: bool = True) -> Credentials:
     path = token_path(settings)
     creds: Credentials | None = None
-    if path.is_file():
+
+    # GitHub Actions / headless: token JSON in env (same pattern as startups repo).
+    token_json = (os.environ.get("YOUTUBE_TOKEN_JSON") or "").strip()
+    if token_json:
+        try:
+            creds = Credentials.from_authorized_user_info(json.loads(token_json), SCOPES)
+            log.info("loaded YouTube credentials from YOUTUBE_TOKEN_JSON")
+        except (ValueError, TypeError, KeyError) as exc:
+            log.warning("YOUTUBE_TOKEN_JSON could not be parsed: %s", exc)
+
+    if creds is None and path.is_file():
         creds = Credentials.from_authorized_user_file(str(path), SCOPES)
     if creds and creds.valid:
         return creds
@@ -161,7 +171,16 @@ def get_credentials(settings: config.Settings, interactive: bool = True) -> Cred
             log.error("token refresh failed (%s); re-authorization required", exc)
     if not interactive:
         raise UploadError(f"no valid token at {path}; run `python -m orchestrator.upload --auth-only`")
-    flow = InstalledAppFlow.from_client_secrets_file(settings.youtube_client_secrets_path, SCOPES)
+
+    secrets_json = (
+        os.environ.get("YOUTUBE_CLIENT_SECRETS_JSON")
+        or os.environ.get("CLIENT_SECRETS_JSON")
+        or ""
+    ).strip()
+    if secrets_json:
+        flow = InstalledAppFlow.from_client_config(json.loads(secrets_json), SCOPES)
+    else:
+        flow = InstalledAppFlow.from_client_secrets_file(settings.youtube_client_secrets_path, SCOPES)
     creds = flow.run_local_server(port=0, access_type="offline", prompt="consent")
     _save_token(creds, path)
     log.info("saved new YouTube OAuth token to %s", path)

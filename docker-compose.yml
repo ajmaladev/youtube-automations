@@ -21,6 +21,7 @@ x-engine: &engine
   volumes:
     - ./config/config.toml:/opt/yta/config.template.toml:ro
     - ./orchestrator/render_config.py:/opt/yta/render_config.py:ro
+    - ./resource/songs:/app/resource/songs:ro
     - engine-storage:/app/storage
   extra_hosts:
     - "host.docker.internal:host-gateway"   # reach Ollama running on the host

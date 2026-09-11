@@ -110,6 +110,16 @@ def approve(topic_id: str, output_dir: Path, dry_run: bool = False) -> Path:
     return _move_pair(topic_id, output_dir, PENDING, APPROVED, dry_run)
 
 
+def approve_pending(output_dir: Path, dry_run: bool = False) -> list[str]:
+    """Approve every pending item (used by unattended GitHub Actions runs)."""
+    approved: list[str] = []
+    for sidecar, result in list_items(output_dir, PENDING):
+        topic_id = result.request.topic_id
+        approve(topic_id, output_dir, dry_run=dry_run)
+        approved.append(topic_id)
+    return approved
+
+
 def reject(topic_id: str, output_dir: Path, dry_run: bool = False) -> Path:
     return _move_pair(topic_id, output_dir, PENDING, REJECTED, dry_run)
 

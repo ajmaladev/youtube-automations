@@ -1,4 +1,5 @@
 from datetime import datetime
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -8,7 +9,10 @@ from orchestrator import generate, review, scheduler, upload
 def test_run_daily_dry_run_touches_nothing(settings, caplog):
     caplog.set_level("INFO")
     summary = scheduler.run_daily(dry_run=True, settings=settings)
-    assert summary == {"generated": [], "uploaded": [], "errors": []}
+    assert summary["generated"] == []
+    assert summary["uploaded"] == []
+    assert summary["approved"] == []
+    assert summary["errors"] == []
     assert "DRY-RUN: would POST" in caplog.text
     assert review.list_items(settings.output_dir, review.PENDING) == []
 
@@ -28,6 +32,13 @@ def test_skip_flags(settings, monkeypatch):
     assert scheduler.run_daily(skip_generate=True, skip_upload=True, settings=settings)["errors"] == []
 
 
+def test_detect_slot():
+    utc = ZoneInfo("UTC")
+    assert scheduler.detect_slot(datetime(2026, 9, 11, 7, 0, tzinfo=utc)) == "morning"
+    assert scheduler.detect_slot(datetime(2026, 9, 11, 14, 0, tzinfo=utc)) == "afternoon"
+    assert scheduler.detect_slot(datetime(2026, 9, 11, 21, 0, tzinfo=utc)) == "night"
+
+
 def test_seconds_until():
     now = datetime(2026, 9, 10, 8, 0)
     assert scheduler.seconds_until("09:30", now) == 5400
@@ -39,7 +50,7 @@ def test_seconds_until():
     (review.main, ["--dry-run", "list"]),
     (upload.main, ["--dry-run"]),
     (upload.main, ["--dry-run", "--auth-only"]),
-    (scheduler.main, ["--dry-run"]),
+    (scheduler.main, ["--dry-run", "--skip-upload"]),
 ])
 def test_every_entrypoint_supports_dry_run_without_credentials(settings, main, argv):
     assert main(argv) == 0

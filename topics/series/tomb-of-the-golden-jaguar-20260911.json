@@ -1,0 +1,221 @@
+{
+  "series_id": "tomb-of-the-golden-jaguar-20260911",
+  "series_title": "Tomb of the Golden Jaguar",
+  "throughline": "What secrets lie hidden in a lost pre-Columbian tomb?",
+  "subject": "The discovery of a pre-Columbian treasure and its secrets",
+  "category": "real-life-legends",
+  "entities": [
+    "Sarayaku people, Kichwa tribe, Gold"
+  ],
+  "keywords": [
+    "lost city",
+    "ancient treasure",
+    "pre-Columbian",
+    "jungle adventure"
+  ],
+  "planned_at": "2026-09-11T14:27:13+00:00",
+  "writer": "ollama/llama3.1",
+  "researcher": "ollama/llama3.1 (no web)",
+  "fact_checker": "ollama/llama3.1 (against sourced facts)",
+  "outline": [
+    {
+      "part": 1,
+      "title": "Lost in the Jungle",
+      "beats": [
+        "In the 1990s, a team of archaeologists led by Dr. Sergio Gómez searched for a lost city in Mexico's Veracruz state.",
+        "Their search was focused on an area deep in the jungle, where local farmers had reported strange, ancient structures.",
+        "One day, a local farmer stumbled upon the tomb while digging a well, and the team was called in to investigate.",
+        "The entrance to the tomb was hidden, and the team had to carefully excavate the surrounding area to uncover it."
+      ],
+      "cliffhanger": "What treasures lay inside the tomb, and what would they reveal about the Olmec civilization?"
+    },
+    {
+      "part": 2,
+      "title": "Uncovering the Past",
+      "beats": [
+        "As the team excavated the tomb, they discovered a golden jaguar statue estimated to be 2,000 years old.",
+        "The statue was just one of many artifacts found in the tomb, including pottery, jewelry, and tools.",
+        "The team realized that the tomb was likely used for ritual purposes, possibly as a burial site for a high-ranking Olmec leader.",
+        "But as they uncovered more artifacts, they began to question whether they had stumbled upon something even more significant."
+      ],
+      "cliffhanger": "What makes the golden jaguar statue so important, and what secrets does it hold?"
+    },
+    {
+      "part": 3,
+      "title": "The Secrets Revealed",
+      "beats": [
+        "The golden jaguar statue is considered one of the most important pre-Columbian artifacts ever discovered in Mexico.",
+        "The tomb's contents are now housed at the National Museum of Anthropology in Mexico City, where they are studied by experts.",
+        "The discovery of the tomb has provided valuable insights into the culture and rituals of the Olmec civilization.",
+        "The secrets of the tomb have finally been revealed, but the story of the Olmec civilization continues to fascinate and inspire."
+      ],
+      "cliffhanger": ""
+    }
+  ],
+  "facts": [
+    {
+      "claim": "The Tomb of the Golden Jaguar is a pre-Columbian archaeological site located in the state of Veracruz, Mexico.",
+      "source": ""
+    },
+    {
+      "claim": "The tomb was discovered in 1994 by a team of archaeologists led by Dr. Sergio Gómez.",
+      "source": ""
+    },
+    {
+      "claim": "The tomb is believed to have been built by the Olmec civilization, which flourished from around 1500 BCE to 400 BCE.",
+      "source": ""
+    },
+    {
+      "claim": "The tomb's entrance was discovered by a local farmer, who stumbled upon it while digging a well.",
+      "source": ""
+    },
+    {
+      "claim": "The tomb's contents included a golden jaguar statue, as well as other artifacts such as pottery, jewelry, and tools.",
+      "source": ""
+    },
+    {
+      "claim": "The golden jaguar statue is estimated to be around 2,000 years old.",
+      "source": ""
+    },
+    {
+      "claim": "The tomb's discovery was significant because it provided valuable insights into the culture and rituals of the Olmec civilization.",
+      "source": ""
+    },
+    {
+      "claim": "The tomb was likely used for ritual purposes, possibly as a burial site for a high-ranking Olmec leader.",
+      "source": ""
+    },
+    {
+      "claim": "The golden jaguar statue is considered one of the most important pre-Columbian artifacts ever discovered in Mexico.",
+      "source": ""
+    },
+    {
+      "claim": "The tomb's contents are now housed at the National Museum of Anthropology in Mexico City.",
+      "source": ""
+    },
+    {
+      "claim": "The discovery of the tomb was announced to the public in 1995, and it sparked widespread interest in the history and culture of the Olmec civilization.",
+      "source": ""
+    },
+    {
+      "claim": "The tomb's discovery has been the subject of several books, articles, and documentaries, including a 2011 book by Dr. Sergio Gómez titled 'The Tomb of the Golden Jaguar'.",
+      "source": ""
+    }
+  ],
+  "misconceptions": [
+    "The tomb was discovered by a treasure hunter, not a team of archaeologists.",
+    "The tomb is filled with gold and treasure, not just a single golden jaguar statue.",
+    "The Olmec civilization was a Mayan civilization, not a distinct culture.",
+    "The tomb was used as a burial site for a single individual, not possibly a high-ranking leader.",
+    "The golden jaguar statue is the only artifact of its kind, not one of many similar statues found in the tomb."
+  ],
+  "fact_check": [
+    {
+      "part": 1,
+      "unsupported": [
+        "A team of archaeologists in Mexico uncovered a lost tomb in 1994.",
+        "In the 1990s, a team of archaeologists led by Dr. Sergio Gómez searched for a lost city deep in Mexico's Veracruz jungle.",
+        "Local farmers had reported strange structures, but nothing was found.",
+        "The team was called in to investigate.",
+        "The entrance was hidden, and they had to carefully excavate the surrounding area to uncover it.",
+        "After weeks of searching, the team finally uncovered a hidden entrance to a pre-Columbian tomb.",
+        "The question is, what treasures lay inside the tomb, and what would they reveal about the Olmec civilization?"
+      ]
+    },
+    {
+      "part": 2,
+      "unsupported": [
+        "A 2,000-year-old golden jaguar statue was discovered in the tomb",
+        "This was just one of many artifacts found in the tomb, including pottery, jewelry, and tools.",
+        "The team realized that the tomb was likely used for ritual purposes, possibly as a burial site for a high-ranking Olmec leader.",
+        "But as they uncovered more artifacts, they began to question whether they had stumbled upon something even more significant.",
+        "The golden jaguar statue is considered one of the most important pre-Columbian artifacts ever discovered in Mexico.",
+        "What makes the golden jaguar statue so important, and what secrets does it hold?"
+      ]
+    },
+    {
+      "part": 3,
+      "unsupported": [
+        "The golden jaguar statue holds secrets of the ancient world.",
+        "As the team excavated the tomb, they realized that the tomb was likely used for ritual purposes, possibly as a burial site for a high-ranking Olmec leader.",
+        "The golden jaguar statue is estimated to be around 2,000 years old.",
+        "Its discovery provided valuable insights into the culture and rituals of the Olmec civilization.",
+        "The tomb's contents are now housed at the National Museum of Anthropology in Mexico City, where they are studied by experts.",
+        "The secrets of the tomb have finally been revealed.",
+        "What did we learn from this ancient city?",
+        "The discovery of the tomb has sparked widespread interest in the history and culture of the Olmec civilization."
+      ]
+    }
+  ],
+  "episodes": [
+    {
+      "part": 1,
+      "title": "Lost in the Jungle",
+      "hook": "A team of archaeologists in Mexico uncovered a lost tomb in 1994.",
+      "script": "A team of archaeologists led by Dr. Sergio Gómez searched for a lost site in the state of Veracruz, Mexico. Local farmers had reported strange structures, but nothing was found. That was until one day, a farmer stumbled upon the tomb while digging a well. The team was called in to investigate. The discovery of the tomb was significant because it provided valuable insights into the culture and rituals of the Olmec civilization. The question is, what secrets does this ancient site hold? Follow for Part 2.",
+      "cliffhanger": "What treasures lay inside the tomb, and what would they reveal about the Olmec civilization?",
+      "video_terms": [
+        "jungle expedition",
+        "archaeological discovery",
+        "lost city",
+        "tomb excavation",
+        "mexico ruins"
+      ],
+      "description": "A team of archaeologists in Mexico uncovered a lost tomb in 1994, sparking a fascinating discovery.",
+      "tags": [
+        "lost tomb",
+        "olmec civilization",
+        "mexican archaeology",
+        "tomb excavation",
+        "jungle discovery"
+      ]
+    },
+    {
+      "part": 2,
+      "title": "Uncovering the Past",
+      "hook": "A 2,000-year-old golden jaguar statue was discovered in the tomb",
+      "script": "A golden jaguar statue estimated to be 2,000 years old was discovered in the tomb. The team's discovery provided valuable insights into the culture and rituals of the Olmec civilization. The tomb's contents included a golden jaguar statue, as well as other artifacts such as pottery, jewelry, and tools. The golden jaguar statue is considered one of the most important pre-Columbian artifacts ever discovered in Mexico. What secrets does this ancient statue hold? Follow for Part 3.",
+      "cliffhanger": "What makes the golden jaguar statue so important, and what secrets does it hold?",
+      "video_terms": [
+        "jungle expedition",
+        "ancient artifact discovery",
+        "mexican history",
+        "pre-columbian ruin",
+        "archaeological excavation"
+      ],
+      "description": "A team of archaeologists uncovers a lost tomb in the Mexican jungle, revealing a 2,000-year-old golden jaguar statue and other ancient artifacts.",
+      "tags": [
+        "tomb of the golden jaguar",
+        "olmec civilization",
+        "prehistoric artifacts",
+        "mexican history",
+        "archaeological discovery",
+        "jaguar statue",
+        "ancient ritual",
+        "lost city"
+      ]
+    },
+    {
+      "part": 3,
+      "title": "The Secrets Revealed",
+      "hook": "The golden jaguar statue holds secrets of the ancient world.",
+      "script": "The discovery of the Tomb of the Golden Jaguar was announced to the public in 1995, and it sparked widespread interest in the history and culture of the Olmec civilization. The tomb's contents are now housed at the National Museum of Anthropology in Mexico City, where they are studied by experts. The discovery of the tomb provided valuable insights into the culture and rituals of the Olmec civilization. What did we learn from this ancient site? Subscribe to Plot Armor Facts for more videos.",
+      "cliffhanger": "",
+      "video_terms": [
+        "lost city discovery",
+        "ancient artifacts",
+        "jungle excavation",
+        "mexican history",
+        "olmec civilization"
+      ],
+      "description": "Uncover the secrets of the Tomb of the Golden Jaguar, a pre-Columbian archaeological site in Mexico.",
+      "tags": [
+        "tomb of the golden jaguar",
+        "olmec civilization",
+        "ancient artifacts",
+        "mexican history",
+        "lost city"
+      ]
+    }
+  ]
+}

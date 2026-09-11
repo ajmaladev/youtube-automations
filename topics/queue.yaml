@@ -1,68 +1,61 @@
 # Plot Armor Facts - topic queue (edit by hand).
 #
-# The pipeline never rewrites this file. Progress is tracked in
-# output/queue_state.json (a topic with status "generated" is skipped; delete
-# its entry there, or run `generate --topic <id>`, to regenerate it).
-#
-# Any key under `defaults` or a topic that is not a VideoRequest field
-# (see orchestrator/models.py) is forwarded verbatim to the video engine's
-# POST /api/v1/videos body, e.g. video_terms, video_clip_duration, font_size.
-#
-# Visuals are real-world stock footage (Pexels). Never add official Marvel/DC
-# art, movie clips, comic panels or logos. Steer footage with `video_terms`.
+# Daily GitHub Actions runs use --series-only (manual topics below are skipped).
+# Keep manual topics for local testing; set enabled: false to pause one.
 
 defaults:
-  video_aspect: "9:16" # "9:16" | "16:9" | "1:1"
-  voice_name: "en-US-AndrewMultilingualNeural-Male" # free Edge TTS. Also: en-US-BrianMultilingualNeural-Male, en-US-AvaMultilingualNeural-Female
+  video_aspect: "9:16"
+  voice_name: "en-US-AndrewMultilingualNeural-Male"
   video_language: "en"
   paragraph_number: 1
   video_script_prompt: "End the script with exactly this sentence: Subscribe to Plot Armor Facts for more videos."
-  bgm_type: "" # no background music (bundled songs removed)
-  privacy_status: private # private | unlisted  ("public" is refused)
+  bgm_type: "random"              # royalty-free tracks in resource/songs/
+  bgm_volume: 0.12                # quiet under voice (startup-repo style)
+  privacy_status: private
   made_for_kids: false
-  category_id: "27" # 27 = Education, 24 = Entertainment, 28 = Science & Tech
+  category_id: "27"
   tags: [shorts, plotarmorfacts]
-  # Shorts karaoke captions: short phrase on screen, spoken word highlighted yellow
+  video_clip_duration: 4
+  video_concat_mode: sequential
+  # Karaoke captions: short phrase, yellow active word, lower third
   subtitle_enabled: true
-  subtitle_display_mode: karaoke          # sentence | word_by_word | karaoke
+  subtitle_display_mode: karaoke
   subtitle_animation: none
-  subtitle_position: custom               # lower-third like CapCut Shorts
-  custom_position: 78                     # % from top (matches typical Shorts safe area)
+  subtitle_position: custom
+  custom_position: 78
   font_name: BeVietnamPro-Bold.ttf
   font_size: 72
-  text_fore_color: "#FFFFFF"              # inactive words
-  subtitle_highlight_color: "#FFFF00"     # active spoken word
-  karaoke_words_per_line: 4               # short punchy phrases
+  text_fore_color: "#FFFFFF"
+  subtitle_highlight_color: "#FFFF00"
+  karaoke_words_per_line: 4
   stroke_color: "#000000"
   stroke_width: 5.0
 
 topics:
-  # --- comics lore ---
+  # Disabled for daily Actions (series-only). Re-enable for local one-offs.
   - id: batman-origin-facts
+    enabled: false
     subject: "5 lesser-known facts about Batman's comic book origin"
     video_terms: "night city skyline, rain alley, bat silhouette, gothic building, lightning storm"
     tags: [shorts, plotarmorfacts, dc, batman, comics]
 
   - id: venom-symbiote-history
+    enabled: false
     subject: "The history of the Venom symbiote in Marvel comics"
     video_terms: "black liquid, ink in water, dark city night, alien texture, rooftop at night"
     tags: [shorts, plotarmorfacts, marvel, venom, comics]
 
-  # --- science behind the powers ---
   - id: superhero-landing-physics
+    enabled: false
     subject: "Could a human survive a superhero landing? The physics explained"
     video_terms: "person jumping, slow motion impact, city rooftop, concrete crack, parkour"
     tags: [shorts, plotarmorfacts, science, physics, superheroes]
 
   - id: spider-silk-vs-steel
+    enabled: false
     subject: "Is real spider silk stronger than steel?"
     video_terms: "spider web dew, spider macro, steel cable, laboratory, bridge cables"
     tags: [shorts, plotarmorfacts, science, spiders]
-
-  # --- examples ---
-  # - id: honeybee-sun-compass
-  #   subject: "How honeybees use the sun as a compass"
-  #   tags: [shorts, science, bees]
 
   - id: paused-example
     subject: "An example topic that is skipped"

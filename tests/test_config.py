@@ -38,8 +38,11 @@ def test_require_only_warns_in_dry_run(settings, caplog):
 
 
 def test_upload_requires_existing_secrets_file(monkeypatch, tmp_path):
+    monkeypatch.delenv("YOUTUBE_CLIENT_SECRETS_JSON", raising=False)
+    monkeypatch.delenv("CLIENT_SECRETS_JSON", raising=False)
     monkeypatch.setenv("YOUTUBE_CLIENT_SECRETS_PATH", str(tmp_path / "nope.json"))
-    assert "file not found" in config.load().missing_for("upload")[0]
+    missing = config.load().missing_for("upload")
+    assert any("YOUTUBE_CLIENT_SECRETS" in m for m in missing)
     (tmp_path / "nope.json").write_text("{}")
     assert config.load().missing_for("upload") == []
 

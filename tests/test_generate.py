@@ -134,7 +134,7 @@ def test_run_end_to_end(gen_settings):
     assert state["t1"]["status"] == "generated"
     # second run: queue exhausted, no API calls
     session.calls.clear()
-    assert generate.run(settings=gen_settings, client=client) == []
+    assert generate.run(count=2, settings=gen_settings, client=client) == []
     assert session.calls == []
 
 

@@ -58,9 +58,20 @@ def isolated_env(monkeypatch, tmp_path):
 def settings(monkeypatch, tmp_path):
     queue = tmp_path / "queue.yaml"
     queue.write_text(QUEUE_YAML, encoding="utf-8")
+    channel = tmp_path / "channel.yaml"
+    channel.write_text(
+        "channel_name: Test\nepisodes_per_series: 3\nwords_per_episode: [90, 130]\n"
+        "ideas_per_round: 6\nsimilarity_threshold: 0.55\navoid_recent: 100\n"
+        "min_verified_facts: 8\naudience: testers\ntone: plain\n"
+        "description_footer: test\ncategories:\n"
+        "  - {name: comics-lore, weight: 1, brief: comics}\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "series").mkdir()
     monkeypatch.setenv("OUTPUT_DIR", str(tmp_path / "output"))
     monkeypatch.setenv("CREDENTIALS_DIR", str(tmp_path / ".credentials"))
     monkeypatch.setenv("TOPIC_QUEUE_PATH", str(queue))
+    monkeypatch.setenv("CHANNEL_CONFIG_PATH", str(channel))
     monkeypatch.setenv("ENGINE_POLL_INTERVAL_S", "0")
     monkeypatch.setenv("AUTO_SERIES", "false")
     return config.load()

@@ -14,14 +14,19 @@ help:
 	@echo "vendor setup up down logs generate review upload auth daily test caddy-hash"
 	@echo "Pass flags with ARGS, e.g. make daily ARGS=--dry-run"
 
-## Re-clone the video engine (no .git, bundled songs removed)
+## Re-clone the video engine (no .git), apply karaoke overrides, install BGM
 vendor:
 	rm -rf $(ENGINE_DIR)
 	git clone --depth 1 $(if $(ENGINE_REF),--branch $(ENGINE_REF),) $(ENGINE_REPO) $(ENGINE_DIR)
 	rm -rf $(ENGINE_DIR)/.git
 	find $(ENGINE_DIR)/resource/songs -type f -delete
 	cp deploy/songs-README.md $(ENGINE_DIR)/resource/songs/README.md
-	@echo "Vendored video engine into $(ENGINE_DIR)"
+	cp -f deploy/engine-overrides/app/models/schema.py $(ENGINE_DIR)/app/models/schema.py
+	cp -f deploy/engine-overrides/app/services/video.py $(ENGINE_DIR)/app/services/video.py
+	cp -f deploy/engine-overrides/app/services/task.py $(ENGINE_DIR)/app/services/task.py
+	mkdir -p $(ENGINE_DIR)/resource/songs
+	cp -f resource/songs/*.mp3 $(ENGINE_DIR)/resource/songs/ 2>/dev/null || true
+	@echo "Vendored video engine into $(ENGINE_DIR) (karaoke + BGM applied)"
 
 ## Python env, local dirs, config + .env from templates (never overwrites)
 setup:

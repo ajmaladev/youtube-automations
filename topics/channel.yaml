@@ -13,23 +13,31 @@ similarity_threshold: 0.55      # 0-1; lower = stricter about "same story"
 avoid_recent: 100               # past series shown to the AI as "already covered"
 min_verified_facts: 8           # ideas with fewer researched, sourced facts are dropped
 
-audience: "teens and adults who love comics, superheroes and 'wait, really?' science"
-tone: "fast, punchy and curious - like a friend telling you an incredible story"
-description_footer: "Stock footage: Pexels. Made with AI-assisted narration."
+audience: >-
+  teens and adults who love surprising true stories — animals, nature, history,
+  science, and comic-book legends — told in clear, simple English
+tone: >-
+  simple English, short sentences, curious and exciting — like a friend telling
+  you an unbelievable true story. Avoid jargon. Prefer concrete images over
+  abstract ideas.
+description_footer: "Stock footage: Pexels. Music: royalty-free. Made with AI-assisted narration."
 
 categories:
-  - name: comics-lore
-    weight: 3
+  - name: real-life-legends
+    weight: 4
     brief: >-
-      Marvel and DC history: character origins, legendary storylines, behind-the-scenes
-      creator stories, retcons and deep-cut lore. Well-documented facts only.
+      True stories from nature and history that sound unbelievable: famous animals,
+      wild survival tales, ancient mysteries, explorers, and "wait, that really happened?"
+      moments. Well-documented facts only. Example vibe: the story of a lion that
+      changed a town, a whale that walked onto shore, a forgotten king, a bee that
+      navigates by the sun.
+  - name: comics-lore
+    weight: 2
+    brief: >-
+      Marvel and DC history told simply: origins, legendary storylines, creator stories.
+      Well-documented facts only. No spoilers of brand-new comics unless widely known.
   - name: superhero-science
     weight: 2
     brief: >-
-      The real science behind superpowers and comic tech: could it work, what would it
-      take, and what real research comes closest.
-  - name: real-life-legends
-    weight: 1
-    brief: >-
-      True events, people or animals from history and nature that sound like
-      comic book plots.
+      The real science behind superpowers and comic tech, explained in plain English:
+      could it work, what would it take, and what real research comes closest.

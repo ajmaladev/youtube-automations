@@ -93,7 +93,8 @@ def save_history(path: Path, history: list[dict[str, Any]]) -> None:
 
 
 def series_dir(settings: config.Settings) -> Path:
-    d = settings.output_dir / "series"
+    # Keep series JSON under topics/ so GitHub Actions can commit day-to-day progress.
+    d = Path(settings.channel_path).parent / "series"
     d.mkdir(parents=True, exist_ok=True)
     return d
 

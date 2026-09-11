@@ -12,8 +12,14 @@ client_secret*.json
 # --- Rendered config (template is config/config.template.toml) ---
 config/config.toml
 
-# --- Generated media, sidecars, quota ledger, queue state ---
+# --- Generated media, sidecars, quota ledger ---
 output/
+!output/queue_state.json
+!output/.gitkeep
+
+# Series scripts live under topics/series/ (tracked for GitHub Actions).
+# Keep rejected drafts local-only if present under output.
+
 
 # --- Python ---
 __pycache__/

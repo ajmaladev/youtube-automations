@@ -96,8 +96,17 @@ def story_settings(settings, monkeypatch, tmp_path):
                      "  video_script_prompt: old manual prompt\ntopics: []\n", encoding="utf-8")
     history = tmp_path / "history.json"
     history.write_text(json.dumps([PAST]), encoding="utf-8")
-    for k, v in {"TOPIC_QUEUE_PATH": str(queue), "STORY_HISTORY_PATH": str(history), "AUTO_SERIES": "true",
-                 "PEXELS_API_KEY": "x", "OLLAMA_HOST": "http://h:11434"}.items():
+    channel = tmp_path / "channel.yaml"
+    channel.write_text((REPO_ROOT / "topics" / "channel.yaml").read_text(encoding="utf-8"), encoding="utf-8")
+    (tmp_path / "series").mkdir(exist_ok=True)
+    for k, v in {
+        "TOPIC_QUEUE_PATH": str(queue),
+        "STORY_HISTORY_PATH": str(history),
+        "CHANNEL_CONFIG_PATH": str(channel),
+        "AUTO_SERIES": "true",
+        "PEXELS_API_KEY": "x",
+        "OLLAMA_HOST": "http://h:11434",
+    }.items():
         monkeypatch.setenv(k, v)
     return config.load()
 
@@ -109,7 +118,7 @@ def plan(settings, replies):
 
 
 def saved_series(settings):
-    return [json.loads(p.read_text(encoding="utf-8")) for p in (settings.output_dir / "series").glob("*.json")]
+    return [json.loads(p.read_text(encoding="utf-8")) for p in story.series_dir(settings).glob("*.json")]
 
 
 def test_similarity_flags_same_story_but_allows_new_one():
