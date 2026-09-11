@@ -1,0 +1,243 @@
+diff --git a/app/models/schema.py b/app/models/schema.py
+index ed83fc8..9c1f045 100644
+--- a/app/models/schema.py
++++ b/app/models/schema.py
+@@ -53,9 +53,9 @@ class VideoFitMode(str, Enum):
+     contain = "contain"
+ 
+ 
+-SubtitleDisplayMode = Literal["sentence", "word_by_word"]
++SubtitleDisplayMode = Literal["sentence", "word_by_word", "karaoke"]
+ SubtitleAnimation = Literal["none", "pop_spring"]
+-_SUBTITLE_DISPLAY_MODES = ("sentence", "word_by_word")
++_SUBTITLE_DISPLAY_MODES = ("sentence", "word_by_word", "karaoke")
+ _SUBTITLE_ANIMATIONS = ("none", "pop_spring")
+ 
+ 
+@@ -149,6 +149,10 @@ class VideoParams(BaseModel):
+     custom_position: float = config.ui.get("custom_position", 70.0)
+     font_name: Optional[str] = "STHeitiMedium.ttc"
+     text_fore_color: Optional[str] = "#FFFFFF"
++    # Karaoke mode: inactive words use text_fore_color; the spoken word uses this.
++    subtitle_highlight_color: Optional[str] = "#FFFF00"
++    # How many words stay on screen together in karaoke mode (short punchy phrases).
++    karaoke_words_per_line: int = Field(default=4, ge=2, le=8)
+     text_background_color: Union[bool, str] = False
+     rounded_subtitle_background: bool = False
+ 
+@@ -179,6 +183,8 @@ class SubtitleRequest(BaseModel):
+     )
+     font_name: Optional[str] = "STHeitiMedium.ttc"
+     text_fore_color: Optional[str] = "#FFFFFF"
++    subtitle_highlight_color: Optional[str] = "#FFFF00"
++    karaoke_words_per_line: int = Field(default=4, ge=2, le=8)
+     text_background_color: Union[bool, str] = False
+     rounded_subtitle_background: bool = False
+     font_size: int = 60
+diff --git a/app/services/task.py b/app/services/task.py
+index 89fe5e7..713d128 100644
+--- a/app/services/task.py
++++ b/app/services/task.py
+@@ -597,7 +597,10 @@ def generate_subtitle(task_id, params, video_script, sub_maker, audio_file):
+         )
+         return ""
+ 
+-    is_word_level = getattr(params, "subtitle_display_mode", "sentence") == "word_by_word"
++    is_word_level = getattr(params, "subtitle_display_mode", "sentence") in (
++        "word_by_word",
++        "karaoke",
++    )
+ 
+     if subtitle_provider == "edge":
+         voice.create_subtitle(
+diff --git a/app/services/video.py b/app/services/video.py
+index 5383038..232e0d4 100644
+--- a/app/services/video.py
++++ b/app/services/video.py
+@@ -1112,6 +1112,160 @@ def _get_visible_center_position(
+     return x, y
+ 
+ 
++def _hex_to_rgb(color: str, default=(255, 255, 255)):
++    """Parse #RRGGBB (or RRGGBB) into an RGB tuple."""
++    value = str(color or "").strip().lstrip("#")
++    if len(value) != 6:
++        return default
++    try:
++        return tuple(int(value[i : i + 2], 16) for i in (0, 2, 4))
++    except ValueError:
++        return default
++
++
++def _render_karaoke_phrase_image(
++    words,
++    active_idx,
++    font_path,
++    font_size,
++    active_color,
++    inactive_color,
++    stroke_color,
++    stroke_width,
++    max_width,
++):
++    """
++    Draw one karaoke frame: all words in the phrase visible, active word highlighted.
++    Matches CapCut/Shorts style (ALL CAPS, thick outline, yellow active word).
++    """
++    font = ImageFont.truetype(font_path, font_size)
++    display = [str(w).strip().upper() for w in words if str(w).strip()]
++    if not display:
++        return None
++    active_idx = max(0, min(active_idx, len(display) - 1))
++    gap = max(8, int(font_size * 0.22))
++    stroke = max(1, int(stroke_width))
++    pad = stroke * 2 + 4
++
++    widths = []
++    for word in display:
++        bbox = font.getbbox(word)
++        widths.append(max(1, bbox[2] - bbox[0]))
++
++    ascent, descent = font.getmetrics()
++    line_h = max(1, int(ascent + descent + stroke * 2))
++    total_w = sum(widths) + gap * (len(display) - 1) + pad * 2
++    total_h = line_h + pad * 2
++
++    # If the phrase is wider than the video, shrink the font once and remeasure.
++    if total_w > max_width and font_size > 24:
++        scale = max_width / total_w
++        return _render_karaoke_phrase_image(
++            words,
++            active_idx,
++            font_path,
++            max(24, int(font_size * scale * 0.95)),
++            active_color,
++            inactive_color,
++            stroke_color,
++            stroke_width,
++            max_width,
++        )
++
++    img = Image.new("RGBA", (total_w, total_h), (0, 0, 0, 0))
++    draw = ImageDraw.Draw(img)
++    x = pad
++    y = pad
++    active_rgb = _hex_to_rgb(active_color, (255, 255, 0))
++    inactive_rgb = _hex_to_rgb(inactive_color, (255, 255, 255))
++    stroke_rgb = _hex_to_rgb(stroke_color, (0, 0, 0))
++
++    for i, word in enumerate(display):
++        fill = active_rgb if i == active_idx else inactive_rgb
++        draw.text(
++            (x, y),
++            word,
++            font=font,
++            fill=fill + (255,),
++            stroke_width=stroke,
++            stroke_fill=stroke_rgb + (255,),
++        )
++        x += widths[i] + gap
++    return img
++
++
++def _position_subtitle_clip(clip, params, video_width, video_height):
++    """Shared vertical placement for sentence / word / karaoke subtitle clips."""
++    if params.subtitle_position == "bottom":
++        return clip.with_position(("center", video_height * 0.95 - clip.h))
++    if params.subtitle_position == "top":
++        return clip.with_position(("center", video_height * 0.05))
++    if params.subtitle_position in ("two_thirds_bottom", "two_thirds", "2/3_bottom"):
++        y_two_thirds = (video_height - clip.h) / 3.0
++        return clip.with_position(("center", y_two_thirds))
++    if params.subtitle_position == "custom":
++        margin = 10
++        max_y = video_height - clip.h - margin
++        min_y = margin
++        custom_y = (video_height - clip.h) * (params.custom_position / 100)
++        custom_y = max(min_y, min(custom_y, max_y))
++        return clip.with_position(("center", custom_y))
++    return clip.with_position(("center", "center"))
++
++
++def _build_karaoke_text_clips(sub_items, params, font_path, video_width, video_height):
++    """
++    Group word-level SRT cues into short phrases and highlight the spoken word.
++    sub_items: iterable of ((start, end), text) from MoviePy SubtitlesClip.
++    """
++    words = []
++    for (start, end), text in sub_items:
++        cleaned = str(text or "").strip()
++        if not cleaned:
++            continue
++        words.append(((float(start), float(end)), cleaned))
++    if not words:
++        return []
++
++    per_line = int(getattr(params, "karaoke_words_per_line", 4) or 4)
++    per_line = max(2, min(8, per_line))
++    highlight = getattr(params, "subtitle_highlight_color", None) or "#FFFF00"
++    inactive = params.text_fore_color or "#FFFFFF"
++    stroke_color = params.stroke_color or "#000000"
++    stroke_width = float(params.stroke_width or 3)
++    font_size = int(params.font_size or 70)
++    max_width = int(video_width * 0.92)
++
++    clips = []
++    for i in range(0, len(words), per_line):
++        phrase = words[i : i + per_line]
++        phrase_words = [item[1] for item in phrase]
++        for active_idx, ((start, end), _) in enumerate(phrase):
++            duration = max(0.04, end - start)
++            img = _render_karaoke_phrase_image(
++                phrase_words,
++                active_idx,
++                font_path,
++                font_size,
++                highlight,
++                inactive,
++                stroke_color,
++                stroke_width,
++                max_width,
++            )
++            if img is None:
++                continue
++            clip = ImageClip(np.array(img), transparent=True)
++            clip = clip.with_start(start).with_end(end).with_duration(duration)
++            anim_type = getattr(params, "subtitle_animation", "none")
++            # Keep karaoke readable; spring animation fights multi-word highlighting.
++            if anim_type in ("pop_spring", "spring", "pop"):
++                clip = _apply_subtitle_spring_animation(clip, duration)
++            clip = _position_subtitle_clip(clip, params, video_width, video_height)
++            clips.append(clip)
++    return clips
++
++
+ def subtitle_colors_are_indistinguishable(params: VideoParams) -> bool:
+     """判断字幕文字和背景是否同色，提醒用户可能无法看清字幕。"""
+     if not params.subtitle_enabled or not params.text_background_color:
+@@ -1413,12 +1567,19 @@ def generate_video(
+                     make_textclip=make_textclip,
+                 )
+             )
+-            text_clips = []
+-            for item in sub.subtitles:
+-                clip = create_text_clip(subtitle_item=item)
+-                text_clips.append(clip)
+-            video_clip = CompositeVideoClip([video_clip, *text_clips])
+-            clip_stack.callback(video_clip.close)
++            display_mode = getattr(params, "subtitle_display_mode", "sentence")
++            if display_mode == "karaoke":
++                text_clips = _build_karaoke_text_clips(
++                    sub.subtitles, params, font_path, video_width, video_height
++                )
++            else:
++                text_clips = []
++                for item in sub.subtitles:
++                    clip = create_text_clip(subtitle_item=item)
++                    text_clips.append(clip)
++            if text_clips:
++                video_clip = CompositeVideoClip([video_clip, *text_clips])
++                clip_stack.callback(video_clip.close)
+ 
+         bgm_enabled = bgm_service.should_use_bgm(
+             params.bgm_type, params.bgm_volume

@@ -2,26 +2,21 @@
 # Requires GNU make + a POSIX shell (Linux/macOS, WSL, or Git Bash on Windows).
 
 ENGINE_REPO ?= https://github.com/harry0703/MoneyPrinterTurbo.git
-ENGINE_REF  ?=
+ENGINE_REF  ?= $(shell cat deploy/engine.ref)
 ENGINE_DIR  := vendor/video-engine
 PY       := uv run python
 ARGS     ?=
 ENV_TEMPLATE := $(firstword $(wildcard .env.example) config/env.example)
 
-.PHONY: help vendor setup up down logs generate review upload auth daily test caddy-hash
+.PHONY: help vendor setup up down logs generate review upload auth daily calendar test caddy-hash
 
 help:
-	@echo "vendor setup up down logs generate review upload auth daily test caddy-hash"
+	@echo "vendor setup up down logs generate review upload auth daily calendar test caddy-hash"
 	@echo "Pass flags with ARGS, e.g. make daily ARGS=--dry-run"
 
-## Re-clone the video engine (no .git, bundled songs removed)
+## Vendor the video engine: pinned commit (deploy/engine.ref) + deploy/engine.patch, no .git, songs removed
 vendor:
-	rm -rf $(ENGINE_DIR)
-	git clone --depth 1 $(if $(ENGINE_REF),--branch $(ENGINE_REF),) $(ENGINE_REPO) $(ENGINE_DIR)
-	rm -rf $(ENGINE_DIR)/.git
-	find $(ENGINE_DIR)/resource/songs -type f -delete
-	cp deploy/songs-README.md $(ENGINE_DIR)/resource/songs/README.md
-	@echo "Vendored video engine into $(ENGINE_DIR)"
+	ENGINE_REPO=$(ENGINE_REPO) bash scripts/ci/vendor-engine.sh $(ENGINE_REF)
 
 ## Python env, local dirs, config + .env from templates (never overwrites)
 setup:
@@ -58,6 +53,10 @@ auth:
 
 daily:
 	$(PY) -m orchestrator.scheduler $(ARGS)
+
+## Check topics/calendar/*.json against the editorial rules
+calendar:
+	$(PY) -m orchestrator.content_calendar validate $(ARGS)
 
 test:
 	uv run pytest

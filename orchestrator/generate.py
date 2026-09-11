@@ -2,16 +2,19 @@
 
 What gets generated (in this order, up to --count videos):
   1. unfinished manual topics from topics/queue.yaml
-  2. unfinished episodes of already-planned series (output/series/*.json)
-  3. brand-new series planned by the story LLM when AUTO_SERIES=true (see story.py)
+  2. content-calendar episodes due up to CALENDAR_LOOKAHEAD_DAYS ahead (topics/calendar/, see content_calendar.py)
+  3. unfinished episodes of already-planned series (output/series/*.json)
+  4. brand-new series planned by the story LLM when AUTO_SERIES=true, only for days the calendar doesn't cover
 
 Flow per video:
   POST /api/v1/videos -> task_id
   GET  /api/v1/tasks/{task_id} until state == 1 (complete) or -1 (failed)
   GET  <videos[0]> (e.g. /tasks/<task_id>/final-1.mp4) -> output/pending/<topic_id>.mp4
   write sidecar JSON -> output/pending/<topic_id>.json   (see review.py)
+Every render is checked (video_check.py) and tried up to GENERATE_ATTEMPTS times before it counts as failed;
+the last attempt widens the stock-footage search.
 
-CLI: python -m orchestrator.generate [--dry-run] [--count N] [--topic ID]
+CLI: python -m orchestrator.generate [--dry-run] [--count N] [--topic ID] [--date YYYY-MM-DD [--part p1|p2|p3]]
 """
 from __future__ import annotations
 
@@ -25,7 +28,7 @@ from typing import Any, Callable
 import requests
 import yaml
 
-from orchestrator import config, review, story
+from orchestrator import config, content_calendar, review, story, video_check
 from orchestrator.llm import LLMError
 from orchestrator.models import VideoRequest, VideoResult
 
@@ -34,10 +37,16 @@ log = logging.getLogger(__name__)
 TASK_STATE_FAILED = -1
 TASK_STATE_COMPLETE = 1
 TASK_STATE_PROCESSING = 4
+# added to the stock-footage search on a render's last attempt, so a thin Pexels result can't sink it
+FALLBACK_TERMS = ("city lights at night", "clouds timelapse", "ocean waves slow motion", "forest aerial view",
+                  "light rays in darkness")
 
 
 class GenerationError(RuntimeError):
     pass
+
+
+RETRIABLE_ERRORS = (GenerationError, TimeoutError, requests.RequestException)
 
 
 class EngineClient:
@@ -177,12 +186,15 @@ def next_topics(queue: list[VideoRequest], state: dict[str, Any], count: int) ->
 
 def select_topics(settings: config.Settings, queue: list[VideoRequest], defaults: dict[str, Any],
                   state: dict[str, Any], count: int, dry_run: bool = False, llm=None) -> list[VideoRequest]:
-    """Manual queue first, then unfinished series episodes, then brand-new series."""
+    """Manual queue first, then due calendar episodes, then unfinished series episodes, then brand-new series."""
     todo = next_topics(queue, state, count)
     if len(todo) < count:
+        todo += content_calendar.due_episodes(settings, state, defaults)[: count - len(todo)]
+    if len(todo) < count:
         todo += story.pending_episodes(settings, state, defaults)[: count - len(todo)]
+    auto_series = settings.auto_series and not content_calendar.covers(settings)  # never invent a calendar day
     planned = 0
-    while len(todo) < count and settings.auto_series and planned < count:
+    while len(todo) < count and auto_series and planned < count:
         try:
             new = story.plan_and_save(settings, defaults, dry_run=dry_run, llm=llm)
         except (story.StoryError, LLMError) as exc:
@@ -197,6 +209,38 @@ def select_topics(settings: config.Settings, queue: list[VideoRequest], defaults
 
 # --- pipeline -------------------------------------------------------------------
 
+def with_fallback_terms(payload: dict[str, Any]) -> dict[str, Any]:
+    raw = payload.get("video_terms")
+    if not raw:
+        return payload  # the engine picks its own terms; don't override them
+    terms = [str(t).strip() for t in (raw if isinstance(raw, list) else str(raw).split(",")) if str(t).strip()]
+    return {**payload, "video_terms": ", ".join(dict.fromkeys([*terms, *FALLBACK_TERMS]))}
+
+
+def render_video(req: VideoRequest, payload: dict[str, Any], settings: config.Settings,
+                 client: EngineClient) -> tuple[Path, str, dict[str, Any]]:
+    """One engine render and download; a video that fails the checks is deleted and raises."""
+    task_id = client.create_video(payload)
+    log.info("topic %s -> engine task %s", req.topic_id, task_id)
+    task = client.wait_for_task(task_id, settings.poll_interval_s, settings.generate_timeout_s)
+    videos = task.get("videos") or []
+    if not videos:
+        raise GenerationError(f"task {task_id} completed without videos")
+
+    pending = review.stage_dir(settings.output_dir, review.PENDING)
+    mp4 = client.download(videos[0], pending / f"{req.topic_id}.mp4")
+    if settings.verify_videos:
+        words = len(str(payload.get("video_script") or task.get("script") or "").split())
+        try:
+            info = video_check.check_video(mp4, words=words, aspect=req.video_aspect)
+        except video_check.VideoCheckError as exc:
+            mp4.unlink(missing_ok=True)
+            raise GenerationError(f"task {task_id} produced a broken video: {exc}") from exc
+        log.info("topic %s: video checked (%.1fs, %dx%d, with audio)", req.topic_id, info.duration_s,
+                 *info.frame_size)
+    return mp4, task_id, task
+
+
 def generate_one(
     req: VideoRequest, settings: config.Settings, client: EngineClient | None, dry_run: bool = False
 ) -> Path | None:
@@ -208,15 +252,18 @@ def generate_one(
                  settings.output_dir / review.PENDING, req.topic_id)
         return None
     assert client is not None
-    task_id = client.create_video(payload)
-    log.info("topic %s -> engine task %s", req.topic_id, task_id)
-    task = client.wait_for_task(task_id, settings.poll_interval_s, settings.generate_timeout_s)
-    videos = task.get("videos") or []
-    if not videos:
-        raise GenerationError(f"task {task_id} completed without videos")
-
-    pending = review.stage_dir(settings.output_dir, review.PENDING)
-    mp4 = client.download(videos[0], pending / f"{req.topic_id}.mp4")
+    attempts = max(1, settings.generate_attempts)
+    for attempt in range(1, attempts + 1):
+        body = with_fallback_terms(payload) if attempt == attempts > 1 else payload
+        try:
+            mp4, task_id, task = render_video(req, body, settings, client)
+            break
+        except RETRIABLE_ERRORS as exc:
+            if attempt == attempts:
+                raise
+            log.warning("topic %s: attempt %d/%d failed (%s); retrying in %.0fs",
+                        req.topic_id, attempt, attempts, exc, settings.generate_retry_delay_s)
+            time.sleep(settings.generate_retry_delay_s)
     script = task.get("script") or ""
     terms = task.get("terms") or []
 
@@ -239,16 +286,27 @@ def generate_one(
 
 def run(count: int | None = None, topic_id: str | None = None, dry_run: bool = False,
         settings: config.Settings | None = None, client: EngineClient | None = None,
-        llm=None) -> list[Path]:
+        llm=None, day: str | None = None, failed: list[str] | None = None, part: str | None = None) -> list[Path]:
     settings = settings or config.load()
     settings.require("generate", dry_run=dry_run)
     queue = load_queue(settings.queue_path)
     defaults = load_defaults(settings.queue_path)
     state = load_state(settings)
     if topic_id:
-        todo = [r for r in [*queue, *story.all_episode_requests(settings, defaults)] if r.topic_id == topic_id]
+        candidates = [*queue, *content_calendar.all_requests(settings, defaults),
+                      *story.all_episode_requests(settings, defaults)]
+        todo = [r for r in candidates if r.topic_id == topic_id]
         if not todo:
-            raise SystemExit(f"topic {topic_id!r} not found in {settings.queue_path} or planned series")
+            raise SystemExit(f"topic {topic_id!r} not found in {settings.queue_path}, the content calendar "
+                             f"or planned series")
+    elif day:
+        todo = [r for d, r in content_calendar.episodes(settings, defaults)
+                if d == day and (not part or r.topic_id.endswith(f"-{part}"))]
+        if not todo:
+            raise SystemExit(f"no content-calendar episodes on {day}{f' ({part})' if part else ''} "
+                             f"in {settings.calendar_dir}")
+        uploaded = {p.stem for p in review.stage_dir(settings.output_dir, review.UPLOADED).glob("*.json")}
+        todo = [r for r in todo if r.topic_id not in uploaded and state.get(r.topic_id, {}).get("status") != "generated"]
     else:
         todo = select_topics(settings, queue, defaults, state,
                              count or settings.daily_generate_count, dry_run=dry_run, llm=llm)
@@ -262,8 +320,10 @@ def run(count: int | None = None, topic_id: str | None = None, dry_run: bool = F
     for req in todo:
         try:
             mp4 = generate_one(req, settings, client, dry_run=dry_run)
-        except (GenerationError, TimeoutError, requests.RequestException) as exc:
+        except RETRIABLE_ERRORS as exc:
             log.error("topic %s failed: %s", req.topic_id, exc)
+            if failed is not None:
+                failed.append(req.topic_id)
             if not dry_run:
                 state[req.topic_id] = {"status": "failed", "error": str(exc)[:500], "at": review.now_iso()}
                 save_state(settings, state)
@@ -281,11 +341,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--dry-run", action="store_true", help="log the requests without calling any API")
     p.add_argument("--count", type=int, help="number of videos to generate (default DAILY_GENERATE_COUNT)")
     p.add_argument("--topic", help="generate one specific topic or episode id")
+    p.add_argument("--date", help="generate every episode of this content-calendar day (YYYY-MM-DD)")
+    p.add_argument("--part", choices=["all", "p1", "p2", "p3"], default="all", help="with --date: only this part")
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args(argv)
     config.setup_logging(args.verbose)
-    run(count=args.count, topic_id=args.topic, dry_run=args.dry_run)
-    return 0
+    failed: list[str] = []
+    run(count=args.count, topic_id=args.topic, dry_run=args.dry_run, day=args.date, failed=failed,
+        part=None if args.part == "all" else args.part)
+    if failed:
+        log.error("%d video(s) failed after retries: %s", len(failed), ", ".join(failed))
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

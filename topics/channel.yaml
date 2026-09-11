@@ -13,23 +13,27 @@ similarity_threshold: 0.55      # 0-1; lower = stricter about "same story"
 avoid_recent: 100               # past series shown to the AI as "already covered"
 min_verified_facts: 8           # ideas with fewer researched, sourced facts are dropped
 
-audience: "teens and adults who love comics, superheroes and 'wait, really?' science"
+audience: "teens and adults who love true stories with a 'wait, really?' twist: survival, nature, history and science"
 tone: "fast, punchy and curious - like a friend telling you an incredible story"
 description_footer: "Stock footage: Pexels. Made with AI-assisted narration."
 
+# Pick stories whose scenes exist as real stock footage (animals, oceans, mountains, storms, cities,
+# planes, space), so the picture matches the narration. No Marvel or DC content.
 categories:
-  - name: comics-lore
+  - name: nature
     weight: 3
     brief: >-
-      Marvel and DC history: character origins, legendary storylines, behind-the-scenes
-      creator stories, retcons and deep-cut lore. Well-documented facts only.
-  - name: superhero-science
+      Real animal and nature stories with a surprising twist, told through animals and places
+      that are easy to film. Well-documented facts only.
+  - name: adventure
     weight: 2
     brief: >-
-      The real science behind superpowers and comic tech: could it work, what would it
-      take, and what real research comes closest.
-  - name: real-life-legends
+      True survival, rescue and exploration stories: mountains, oceans, caves, flights and space.
+  - name: history
+    weight: 2
+    brief: >-
+      Unbelievable true events and people, including the real stories behind hit movies.
+  - name: science
     weight: 1
     brief: >-
-      True events, people or animals from history and nature that sound like
-      comic book plots.
+      Space, weather, volcanoes and discoveries explained through one gripping true story.

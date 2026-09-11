@@ -1,0 +1,3 @@
+# CI scripts run on Linux runners; the engine patch must reach `git apply` byte-for-byte.
+*.sh text eol=lf
+deploy/engine.patch -text

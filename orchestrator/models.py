@@ -20,6 +20,7 @@ class VideoRequest:
     privacy_status: str = "private"
     made_for_kids: bool = False
     contains_synthetic_media: bool = True  # AI-generated -> always disclose
+    publish_at: str = ""  # content-calendar slot (RFC 3339 UTC); used only with YOUTUBE_SCHEDULE_PUBLISH
     # Fields forwarded verbatim to POST /api/v1/videos (TaskVideoRequest)
     video_aspect: str = "9:16"
     voice_name: str = "en-US-JennyNeural-Female"  # Edge TTS voice

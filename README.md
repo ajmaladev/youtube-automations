@@ -13,8 +13,8 @@
   <img alt="Tests" src="https://img.shields.io/badge/tests-pytest-0A9EDC?logo=pytest&logoColor=white">
 </p>
 
-**Plot Armor Facts** plans a fresh 3-part story series every day (comics lore, superhero science and real-life legends), researches it on the web, writes and fact-checks the scripts, and renders them into vertical videos with voice-over, subtitles and stock footage.
-**Nothing is uploaded until you approve it**, and every upload goes up **private** with the AI-content disclosure switched on.
+**Plot Armor Facts** plans a fresh 3-part story series every day (true survival, nature, history and science stories), researches it on the web, writes and fact-checks the scripts, and renders them into vertical videos with voice-over, subtitles and stock footage.
+On your PC you approve each video before it uploads; on GitHub Actions it renders, checks and uploads every day **with no approval needed**. Every upload goes up **private** (optionally with a scheduled publish time) with the AI-content disclosure switched on.
 
 [Features](#-features) •
 [How it works](#-how-it-works) •
@@ -50,6 +50,10 @@
 | | Feature | What it does |
 |:--:|---|---|
 | 💡 | **Automatic topics** | The AI picks a new series idea every day from the categories you choose. |
+| ☁️ | **GitHub Actions** | Runs daily in the cloud: renders, checks every video and schedules the uploads, with no approval needed. |
+| 🎞️ | **Footage that matches** | One stock clip per ~8 spoken words, in script order, previewed before rendering with `footage storyboard`. |
+| 🗓️ | **/plan-month** | A Claude Code command that researches, writes and checks next month's calendar for you. |
+| 📅 | **Content calendar** | Or pre-write a whole month in `topics/calendar/`: the pipeline renders and schedules it and never invents a topic for those days. |
 | 🚫 | **No repeats** | Every series is saved to `topics/history.json`, and new ideas that are too similar are rejected. |
 | 🔎 | **Web research** | Facts are collected with web search, and each one comes with a source link. |
 | 🧭 | **Real storytelling** | Each series is outlined first, then Part 1 → 2 → 3 are written with recaps and cliffhangers. |
@@ -229,6 +233,13 @@ uv run python -m orchestrator.scheduler --dry-run
 | `OPENAI_API_KEY` | 🟡 | `sk-...` | Only if `LLM_PROVIDER=openai` or `STORY_LLM_PROVIDER=openai` (paid) |
 | `ELEVENLABS_API_KEY` | 🟢 | *(empty)* | Premium voices instead of the free Edge voices |
 
+### 📅 Content calendar
+
+| Variable | Need | Example / default | What it is |
+|---|:--:|---|---|
+| `CONTENT_CALENDAR_DIR` | 🟢 | `topics/calendar` | Folder with pre-written months (`YYYY-MM.json`) |
+| `CALENDAR_LOOKAHEAD_DAYS` | 🟢 | `1` | Render episodes this many days early, so you can approve them in time |
+
 ### ✍️ Automatic story series
 
 | Variable | Need | Example / default | What it is |
@@ -265,6 +276,7 @@ uv run python -m orchestrator.scheduler --dry-run
 | `YOUTUBE_MAX_UPLOADS_PER_DAY` | 🟢 | `5` | Daily upload cap (5 at most) |
 | `YOUTUBE_DAILY_QUOTA_UNITS` | 🟢 | `10000` | Google's free daily API quota |
 | `YOUTUBE_UPLOAD_UNIT_COST` | 🟢 | `1600` | Conservative estimated cost per upload |
+| `YOUTUBE_SCHEDULE_PUBLISH` | 🟢 | `false` | `true` = approved calendar episodes are scheduled for their slot, and YouTube publishes them then |
 
 ### ⏰ Scheduling
 
@@ -273,6 +285,9 @@ uv run python -m orchestrator.scheduler --dry-run
 | `DAILY_GENERATE_COUNT` | 🟢 | `3` | Videos per daily run (3 = one full series) |
 | `ENGINE_POLL_INTERVAL_S` | 🟢 | `10` | Seconds between progress checks |
 | `ENGINE_GENERATE_TIMEOUT_S` | 🟢 | `1800` | Give up on a render after this many seconds |
+| `GENERATE_ATTEMPTS` | 🟢 | `3` | Tries per video; the last try widens the stock-footage search |
+| `GENERATE_RETRY_DELAY_S` | 🟢 | `30` | Seconds to wait between tries |
+| `VERIFY_VIDEOS` | 🟢 | `true` | Check every MP4 (complete, 1080×1920, has narration, sensible length) before review |
 
 <details>
 <summary><b>⚙️ Advanced variables (you normally don't need these)</b></summary>
@@ -504,7 +519,16 @@ ENGINE_API_KEY=the-generated-string
    docker compose up -d
    ```
 
-### Step 2: Plan a new series
+### Step 2: Check today's content
+
+If `topics/calendar/` has a file for this month (for example `2026-10.json`), the stories are already written:
+
+```bash
+uv run python -m orchestrator.content_calendar validate
+uv run python -m orchestrator.content_calendar show --date 2026-10-01
+```
+
+For days the calendar doesn't cover, plan a new series instead:
 
 ```bash
 uv run python -m orchestrator.story plan
@@ -523,7 +547,7 @@ uv run python -m orchestrator.generate --count 3
 - To render one specific part: `--topic <series-id>-p1`.
 
 > [!NOTE]
-> Topics you add by hand in `topics/queue.yaml` are rendered **before** automatic series.
+> Order: topics you add by hand in `topics/queue.yaml`, then calendar episodes (up to `CALENDAR_LOOKAHEAD_DAYS` ahead), then automatic series.
 
 ### Step 4: Review and approve
 
@@ -556,7 +580,7 @@ uv run python -m orchestrator.upload
 - Uploads everything in `output/approved/`, up to 5 a day.
 - Videos go up **private** with the AI disclosure on.
 - Uploaded videos move to `output/uploaded/`, and each one's `.json` file records its YouTube ID.
-- In **YouTube Studio**, open each video, choose **Visibility → Schedule**, and pick a time (for example morning, afternoon and night).
+- Calendar episodes: with `YOUTUBE_SCHEDULE_PUBLISH=true` they are scheduled for their slot automatically (p1 morning, p2 afternoon, p3 night). Otherwise, in **YouTube Studio**, open each video, choose **Visibility → Schedule**, and pick a time.
 
 ### Step 7: Automate it daily
 
@@ -586,12 +610,65 @@ Your PC must be on, with Docker Desktop running, at that time.
 
 </details>
 
+### Step 8: Run it on GitHub Actions (optional)
+
+`.github/workflows/daily-shorts.yml` runs every day at 16:00 UTC:
+
+1. **Render:** runs the tests and calendar checks, starts the video engine (pinned version, cached in GitHub's container registry), renders tomorrow's 3 episodes, checks every MP4, and retries a failed render up to 3 times.
+2. **Upload:** as soon as all 3 videos pass the checks, uploads them automatically, private with scheduled publish times (09:00, 15:00 and 21:00 in the calendar's timezone), and records every upload on the `automation-state` branch so a re-run never posts twice. No approval is needed; the videos stay downloadable from the run page for 14 days. Videos that render are uploaded even if another part fails; the failed one shows as **Not uploaded** on the status page, where one click retries it.
+
+One-time setup:
+
+1. Create the YouTube login token on your computer:
+   ```bash
+   uv run python -m orchestrator.upload --auth-only
+   ```
+2. Add the repository secrets (**Settings → Secrets and variables → Actions**), or with the GitHub CLI as the repository owner:
+   ```bash
+   gh secret set PEXELS_API_KEY
+   gh secret set YOUTUBE_CLIENT_SECRET_JSON < .credentials/client_secret.json
+   gh secret set YOUTUBE_TOKEN_JSON < .credentials/youtube.token.json
+   ```
+3. *(Optional)* Add a repository variable `CALENDAR_TIMEZONE` if your calendar's `timezone` isn't `Europe/London`.
+4. Test it: **Actions → Daily Shorts → Run workflow**, with a date such as `2026-10-01`.
+
+> [!IMPORTANT]
+> - Set the Google OAuth consent screen to **In production**, or the `YOUTUBE_TOKEN_JSON` login expires after 7 days.
+> - YouTube keeps videos uploaded by **unverified API projects private**, even with a scheduled time. Request a YouTube API audit in Google Cloud so they can go public.
+> - GitHub pauses scheduled workflows in public repositories after 60 days without activity. Re-enable it on the **Actions** tab if that happens.
+> - Add next month's `topics/calendar/YYYY-MM.json` before the month starts; days without a calendar are skipped with a warning.
+
+### Step 9: Owner pages (GitHub Pages)
+
+The `docs/` folder is a small website:
+
+| Page | What it's for |
+|---|---|
+| `index.html` | Home page for the channel and the uploader app (use it as the Google OAuth **Application home page**) |
+| `privacy.html` | Privacy policy (use it as the Google OAuth **Privacy policy link** and in the YouTube API audit) |
+| `calendar.html` | Pick Yesterday / Today / Tomorrow or any date and read that day's story, scripts, footage terms and raw JSON |
+| `status.html` | See whether each part was uploaded, follow recent runs, and **retry** a failed video or a whole day |
+
+1. After merging to `main`: **Settings → Pages → Build and deployment → Deploy from a branch → `main` / `/docs` → Save**.
+   The site appears at `https://<your-user>.github.io/youtube-automations/`.
+2. In Google Cloud **Google Auth Platform → Branding**, set the home page to that URL, the privacy policy to `.../privacy.html`, and add `<your-user>.github.io` under **Authorised domains**. Remove the logo, save, then **Audience → Publish app**.
+3. To retry from `status.html`, create a [fine-grained token](https://github.com/settings/personal-access-tokens/new) for this repository only with **Actions: Read and write**, and paste it on the page (it stays in that browser). Or run the same retry from a terminal:
+   ```bash
+   gh workflow run daily-shorts.yml -f date=2026-10-05 -f part=p2
+   ```
+   Pages read the `main` branch; add `?ref=<branch>` to a page URL to read another branch.
+
 ### ⚡ Command cheat sheet
 
 | Task | Command | With `make` |
 |---|---|---|
 | Plan a series | `uv run python -m orchestrator.story plan` | – |
 | List past series | `uv run python -m orchestrator.story history` | – |
+| Check the calendar | `uv run python -m orchestrator.content_calendar validate` | `make calendar` |
+| Preview every clip (waits for the Pexels limit) | `uv run python -m orchestrator.footage warm topics/calendar/2026-10.json` | – |
+| Preview footage per sentence | `uv run python -m orchestrator.footage storyboard topics/calendar/2026-10.json` | – |
+| Write next month | `/plan-month 2026-11` in Claude Code | – |
+| Show a calendar day | `uv run python -m orchestrator.content_calendar show --date 2026-10-01` | – |
 | Render videos | `uv run python -m orchestrator.generate --count 3` | `make generate` |
 | Review | `uv run python -m orchestrator.review list` | `make review` |
 | YouTube login | `uv run python -m orchestrator.upload --auth-only` | `make auth` |
@@ -613,12 +690,69 @@ episodes_per_series: 3
 words_per_episode: [90, 130]      # ~35-50 seconds per part
 tone: "fast, punchy and curious"
 categories:
-  - name: comics-lore             # higher weight = picked more often
+  - name: nature                  # higher weight = picked more often
     weight: 3
-    brief: "Marvel and DC history: origins, storylines, creator stories."
-  - name: superhero-science
+    brief: "Real animal and nature stories with a surprising twist."
+  - name: adventure
     weight: 2
-    brief: "The real science behind superpowers."
+    brief: "True survival, rescue and exploration stories."
+```
+
+### `topics/calendar/YYYY-MM.json`: a pre-written month
+
+One file per month with one 3-part series per day. The full format is in `topics/calendar/calendar.schema.json`:
+
+```json
+{
+  "month": "2026-10",
+  "timezone": "local",
+  "slots": {"p1": {"label": "morning", "time": "09:00"}, "p2": {"label": "afternoon", "time": "15:00"},
+            "p3": {"label": "night", "time": "21:00"}},
+  "series": [{
+    "series_id": "2026-10-01-hachiko", "date": "2026-10-01", "category": "nature",
+    "series_title": "The Dog Who Never Stopped Waiting",
+    "sources": [{"title": "Hachikō - Wikipedia", "url": "https://en.wikipedia.org/wiki/Hachik%C5%8D"}],
+    "episodes": [{"episode_id": "2026-10-01-hachiko-p1", "part": "p1", "slot": "morning",
+                  "script": "This dog waited for his dead owner for almost ten years. ...",
+                  "video_terms": ["akita dog close up", "tokyo train station", "..."]}]
+  }]
+}
+```
+
+`make calendar` checks every month against the editorial rules before anything is rendered:
+
+| Rule | Why |
+|---|---|
+| 80–110 words per part, including the ending | About 35–45 seconds keeps viewers to the end |
+| Hook of 12 words at most, never opening with a date | The first second decides the swipe |
+| Parts 2 and 3 recap in sentence 2 (`In Part 1, ...`) | Viewers who land on a later part can still follow |
+| Specific cliffhangers, never "What happened next?" | A real reason to watch the next part |
+| Endings: *"Subscribe so you don't miss Part 2."* / *"...Part 3."* / *"Subscribe for a new true story every day."* | One clear call to action |
+| At most 4 numbers, and 24 words per sentence | Easy to follow by ear |
+| 5 stock-footage terms, no characters, films, brands or comic art | Copyright-safe visuals |
+| Sources for every series | Facts only |
+
+### Next month's calendar: `/plan-month`
+
+In Claude Code, run:
+
+```text
+/plan-month 2026-11
+```
+
+It lists the stories already used, picks filmable true stories (checking their key scenes on Pexels), sends batches to the `calendar-series-writer` agent to research and write them with sources, previews the clip under every sentence, then assembles and validates `topics/calendar/2026-11.json`. The rules live in `.claude/skills/calendar-writing/SKILL.md`. It never commits.
+
+Check footage yourself at any time:
+
+```bash
+uv run python -m orchestrator.footage search "sled dogs running in snow"
+uv run python -m orchestrator.footage storyboard topics/calendar/2026-10.json --date 2026-10-23
+```
+
+`storyboard` prints the exact Pexels clip the engine will pick for each term, next to the words it plays under. `/plan-month` always finishes with a full preview; to preview a file yourself (it waits out Pexels' 200-searches-an-hour limit):
+
+```bash
+uv run python -m orchestrator.footage warm topics/calendar/2026-10.json
 ```
 
 ### `topics/queue.yaml`: voice, style and manual topics
@@ -654,7 +788,7 @@ topics:                          # optional: runs before automatic series
 | Limit | Value | Notes |
 |---|---|---|
 | YouTube uploads | **5 per day** | Hard-capped in code |
-| YouTube privacy | **Private** | `public` is refused; publish yourself in YouTube Studio |
+| YouTube privacy | **Private** | `public` is refused; publish in YouTube Studio, or set `YOUTUBE_SCHEDULE_PUBLISH=true` to schedule approved calendar episodes |
 | AI disclosure | **Always on** | `containsSyntheticMedia: true` |
 | Groq free tier | ~200k tokens per model per day | Research uses ~30k per series |
 | Pexels free tier | ~200 requests per hour | Plenty for daily videos |
@@ -689,9 +823,12 @@ topics:                          # optional: runs before automatic series
 ```text
 youtube-automations/
 ├── 📁 orchestrator/            # the pipeline (Python)
+│   ├── content_calendar.py     #   pre-written months: validate, load, schedule
 │   ├── story.py                #   ideate → research → outline → write → fact-check
 │   ├── llm.py                  #   Groq / Gemini / OpenAI / Ollama client
 │   ├── generate.py             #   sends scripts to the video engine, downloads videos
+│   ├── video_check.py          #   checks every rendered MP4 before review
+│   ├── footage.py              #   previews the Pexels clip under every sentence
 │   ├── review.py               #   approval gate (pending → approved)
 │   ├── upload.py               #   YouTube OAuth, resumable upload, quota
 │   ├── scheduler.py            #   daily run
@@ -701,13 +838,19 @@ youtube-automations/
 ├── 📁 topics/
 │   ├── channel.yaml            # ✏️ channel personality and categories
 │   ├── queue.yaml              # ✏️ voice, style, manual topics
+│   ├── calendar/               # ✏️ pre-written months (YYYY-MM.json) + schema
 │   └── history.json            # every series ever planned (no repeats)
 ├── 📁 config/
 │   ├── env.example             # template for .env
 │   └── config.template.toml    # engine config with ${VARIABLE} placeholders
 ├── 📁 deploy/
 │   ├── Caddyfile               # password protection
-│   └── engine.Dockerfile       # engine image
+│   ├── engine.Dockerfile       # engine image
+│   ├── engine.ref              # pinned upstream engine commit
+│   └── engine.patch            # this project's engine changes (karaoke subtitles)
+├── 📁 scripts/ci/              # vendor/build/start the engine + upload history, used by GitHub Actions
+├── 📁 .github/workflows/       # daily-shorts.yml: render → approve → upload
+├── 📁 .claude/                 # /plan-month skill, calendar-writing rules, calendar-series-writer agent
 ├── 📁 tests/                   # offline tests (no network)
 ├── 📁 output/                  # 🚫 gitignored: series/, pending/, approved/, uploaded/
 ├── 📁 vendor/video-engine/     # 🚫 gitignored: downloaded by `make vendor`

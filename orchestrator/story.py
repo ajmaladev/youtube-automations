@@ -49,10 +49,10 @@ CHANNEL_DEFAULTS: dict[str, Any] = {
     "similarity_threshold": 0.55,
     "avoid_recent": 100,
     "min_verified_facts": 8,
-    "audience": "viewers who love comics, superheroes and surprising science",
+    "audience": "viewers who love true stories with a surprising twist",
     "tone": "fast, punchy, curious, a little dramatic",
     "description_footer": "Stock footage: Pexels.",
-    "categories": [{"name": "comics-lore", "weight": 1, "brief": "Marvel and DC history and lore."}],
+    "categories": [{"name": "nature", "weight": 1, "brief": "Real animal and nature stories with a surprising twist."}],
 }
 MAX_RESEARCHED_IDEAS = 3
 MAX_WRITE_ATTEMPTS = 3
