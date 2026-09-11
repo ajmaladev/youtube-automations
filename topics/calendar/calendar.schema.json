@@ -1,0 +1,317 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://plotarmorfacts/topics/calendar/calendar.schema.json",
+  "title": "Plot Armor Facts - monthly content calendar",
+  "description": "One file per month (topics/calendar/YYYY-MM.json). One 3-part series per day: p1 morning, p2 afternoon, p3 night. Everything here is pre-written and fact-checked; the pipeline only renders and uploads it.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "channel",
+    "month",
+    "timezone",
+    "slots",
+    "series"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "channel": {
+      "type": "string",
+      "minLength": 1
+    },
+    "month": {
+      "type": "string",
+      "pattern": "^\\d{4}-(0[1-9]|1[0-2])$"
+    },
+    "timezone": {
+      "type": "string",
+      "description": "IANA zone for slot times, or \"local\" for the machine running the scheduler."
+    },
+    "slots": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "p1",
+        "p2",
+        "p3"
+      ],
+      "properties": {
+        "p1": {
+          "$ref": "#/$defs/slot"
+        },
+        "p2": {
+          "$ref": "#/$defs/slot"
+        },
+        "p3": {
+          "$ref": "#/$defs/slot"
+        }
+      }
+    },
+    "series": {
+      "type": "array",
+      "description": "Exactly one series per calendar day, sorted by date.",
+      "minItems": 28,
+      "maxItems": 31,
+      "items": {
+        "$ref": "#/$defs/series"
+      }
+    }
+  },
+  "$defs": {
+    "date": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+    },
+    "slot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "label",
+        "time"
+      ],
+      "properties": {
+        "label": {
+          "enum": [
+            "morning",
+            "afternoon",
+            "night"
+          ]
+        },
+        "time": {
+          "type": "string",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+        }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "title",
+        "url"
+      ],
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 3
+        },
+        "url": {
+          "type": "string",
+          "pattern": "^https://"
+        }
+      }
+    },
+    "series": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "series_id",
+        "date",
+        "category",
+        "series_title",
+        "throughline",
+        "sources",
+        "episodes"
+      ],
+      "properties": {
+        "series_id": {
+          "type": "string",
+          "description": "<date>-<slug>, e.g. 2026-10-01-hachiko. Also the prefix of every episode_id.",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}-[a-z0-9]+(-[a-z0-9]+)*$"
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "category": {
+          "enum": [
+            "nature",
+            "history",
+            "science",
+            "adventure"
+          ]
+        },
+        "series_title": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 45
+        },
+        "throughline": {
+          "type": "string",
+          "description": "The one question the whole series answers (p1 asks it, p3 answers it)."
+        },
+        "sources": {
+          "type": "array",
+          "description": "Reliable sources that together support every factual claim in the three scripts.",
+          "minItems": 2,
+          "items": {
+            "$ref": "#/$defs/source"
+          }
+        },
+        "episodes": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "prefixItems": [
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/episode"
+                },
+                {
+                  "properties": {
+                    "part": {
+                      "const": "p1"
+                    },
+                    "slot": {
+                      "const": "morning"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/episode"
+                },
+                {
+                  "properties": {
+                    "part": {
+                      "const": "p2"
+                    },
+                    "slot": {
+                      "const": "afternoon"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "allOf": [
+                {
+                  "$ref": "#/$defs/episode"
+                },
+                {
+                  "properties": {
+                    "part": {
+                      "const": "p3"
+                    },
+                    "slot": {
+                      "const": "night"
+                    },
+                    "cliffhanger": {
+                      "const": ""
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "episode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "episode_id",
+        "date",
+        "part",
+        "slot",
+        "series_id",
+        "series_title",
+        "episode_title",
+        "youtube_title",
+        "script",
+        "cliffhanger",
+        "video_terms",
+        "description",
+        "tags"
+      ],
+      "properties": {
+        "episode_id": {
+          "type": "string",
+          "description": "<series_id>-<part>; used as the pipeline topic_id.",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}-[a-z0-9-]+-p[123]$"
+        },
+        "date": {
+          "$ref": "#/$defs/date"
+        },
+        "part": {
+          "enum": [
+            "p1",
+            "p2",
+            "p3"
+          ]
+        },
+        "slot": {
+          "enum": [
+            "morning",
+            "afternoon",
+            "night"
+          ]
+        },
+        "series_id": {
+          "type": "string"
+        },
+        "series_title": {
+          "type": "string",
+          "maxLength": 45
+        },
+        "episode_title": {
+          "type": "string",
+          "minLength": 5,
+          "maxLength": 60
+        },
+        "youtube_title": {
+          "type": "string",
+          "description": "\"<series_title> (Part N/3)\"",
+          "maxLength": 100,
+          "pattern": " \\(Part [123]/3\\)$"
+        },
+        "script": {
+          "type": "string",
+          "description": "Exact narration, 80-110 words including the fixed ending: p1 'Subscribe so you don't miss Part 2.', p2 'Subscribe so you don't miss Part 3.', p3 'Subscribe for a new true story every day.' Hook max 12 words; p2/p3 sentence 2 recaps ('In Part N, ...'). Full rules: python -m orchestrator.content_calendar validate",
+          "minLength": 350
+        },
+        "cliffhanger": {
+          "type": "string",
+          "description": "The tease p1/p2 end on (answered by the next part). Empty for p3."
+        },
+        "video_terms": {
+          "type": "array",
+          "description": "Pexels search phrases in script order, one per ~8.5 spoken words (one 3-second clip each). 2-5 lowercase words describing a filmable real-world scene; no characters, brands, logos or art. Preview: python -m orchestrator.footage storyboard",
+          "minItems": 8,
+          "maxItems": 14,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9]+( [a-z0-9]+){1,4}$"
+          },
+          "uniqueItems": true
+        },
+        "description": {
+          "type": "string",
+          "description": "A teaser plus a question for the comments. The uploader appends 'Part N of 3', the series sources, the channel footer and #shorts.",
+          "minLength": 20,
+          "maxLength": 300,
+          "pattern": "\\?"
+        },
+        "tags": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9 '-]*$"
+          }
+        }
+      }
+    }
+  }
+}

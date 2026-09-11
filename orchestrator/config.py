@@ -42,6 +42,9 @@ class Settings:
     daily_generate_count: int
     poll_interval_s: float
     generate_timeout_s: float
+    generate_attempts: int
+    generate_retry_delay_s: float
+    verify_videos: bool
     auto_series: bool
     story_llm_provider: str
     story_llm_model: str
@@ -52,6 +55,9 @@ class Settings:
     gemini_api_key: str
     channel_path: Path
     history_path: Path
+    calendar_dir: Path
+    calendar_lookahead_days: int
+    youtube_schedule_publish: bool
 
     # --- per-stage validation -------------------------------------------------
     def missing_for(self, stage: str) -> list[str]:
@@ -142,6 +148,9 @@ def load(env_file: str | os.PathLike | None = None) -> Settings:
         daily_generate_count=_int("DAILY_GENERATE_COUNT", 1),
         poll_interval_s=_float("ENGINE_POLL_INTERVAL_S", 10.0),
         generate_timeout_s=_float("ENGINE_GENERATE_TIMEOUT_S", 1800.0),
+        generate_attempts=_int("GENERATE_ATTEMPTS", 3),
+        generate_retry_delay_s=_float("GENERATE_RETRY_DELAY_S", 30.0),
+        verify_videos=s("VERIFY_VIDEOS", "true").lower() in {"1", "true", "yes", "on"},
         auto_series=s("AUTO_SERIES", "true").lower() in {"1", "true", "yes", "on"},
         story_llm_provider=s("STORY_LLM_PROVIDER", "ollama").lower(),
         story_llm_model=s("STORY_LLM_MODEL"),
@@ -152,6 +161,9 @@ def load(env_file: str | os.PathLike | None = None) -> Settings:
         gemini_api_key=s("GEMINI_API_KEY"),
         channel_path=Path(s("CHANNEL_CONFIG_PATH") or REPO_ROOT / "topics" / "channel.yaml"),
         history_path=Path(s("STORY_HISTORY_PATH") or REPO_ROOT / "topics" / "history.json"),
+        calendar_dir=Path(s("CONTENT_CALENDAR_DIR") or REPO_ROOT / "topics" / "calendar"),
+        calendar_lookahead_days=_int("CALENDAR_LOOKAHEAD_DAYS", 1),
+        youtube_schedule_publish=s("YOUTUBE_SCHEDULE_PUBLISH", "false").lower() in {"1", "true", "yes", "on"},
     )
 
 

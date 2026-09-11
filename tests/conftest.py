@@ -16,6 +16,8 @@ ENV_KEYS = [
     "ENGINE_GENERATE_TIMEOUT_S", "OLLAMA_BASE_URL", "AUTO_SERIES", "STORY_LLM_PROVIDER",
     "STORY_LLM_MODEL", "STORY_LLM_BASE_URL", "GROQ_API_KEY", "GEMINI_API_KEY",
     "CHANNEL_CONFIG_PATH", "STORY_HISTORY_PATH", "STORY_RESEARCH_MODEL", "STORY_ALLOW_UNVERIFIED",
+    "CONTENT_CALENDAR_DIR", "CALENDAR_LOOKAHEAD_DAYS", "YOUTUBE_SCHEDULE_PUBLISH",
+    "GENERATE_ATTEMPTS", "GENERATE_RETRY_DELAY_S", "VERIFY_VIDEOS",
 ]
 
 QUEUE_YAML = """
@@ -46,6 +48,8 @@ def isolated_env(monkeypatch, tmp_path):
     monkeypatch.setenv("ORCH_ENV_FILE", str(tmp_path / "no-such.env"))
     # never touch the real topics/history.json from tests
     monkeypatch.setenv("STORY_HISTORY_PATH", str(tmp_path / "history.json"))
+    # ...nor the real content calendar (its dates would make tests depend on today's date)
+    monkeypatch.setenv("CONTENT_CALENDAR_DIR", str(tmp_path / "calendar"))
 
     def _blocked(*a, **k):
         raise NetworkBlocked("network access attempted in tests")
@@ -63,4 +67,6 @@ def settings(monkeypatch, tmp_path):
     monkeypatch.setenv("TOPIC_QUEUE_PATH", str(queue))
     monkeypatch.setenv("ENGINE_POLL_INTERVAL_S", "0")
     monkeypatch.setenv("AUTO_SERIES", "false")
+    monkeypatch.setenv("GENERATE_ATTEMPTS", "1")
+    monkeypatch.setenv("VERIFY_VIDEOS", "false")  # the fake engine returns placeholder bytes, not MP4s
     return config.load()

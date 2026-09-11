@@ -5,11 +5,14 @@
 - Resumable upload with exponential backoff + jitter on retriable errors
 - status.containsSyntheticMedia = True (altered/synthetic content disclosure)
 - privacyStatus "private" by default; "public" is refused
+- YOUTUBE_SCHEDULE_PUBLISH=true: approved content-calendar episodes also get status.publishAt, so the video
+  stays private until its slot (p1 morning, p2 afternoon, p3 night) and YouTube publishes it then
 - Quota ledger keyed by Pacific-time date (quota resets at midnight PT):
   YOUTUBE_UPLOAD_UNIT_COST per attempt against YOUTUBE_DAILY_QUOTA_UNITS,
   and a hard cap of 5 upload attempts/day regardless of units
 
-Only reads from output/approved/ (via review.load_approved).
+Only reads from output/approved/ (via review.load_approved), and skips anything already recorded in
+output/uploaded/, so a re-run never posts the same video twice.
 
 CLI: python -m orchestrator.upload [--dry-run] [--auth-only]
 """
@@ -21,7 +24,7 @@ import logging
 import os
 import random
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 from zoneinfo import ZoneInfo
@@ -51,6 +54,7 @@ MAX_BACKOFF_S = 64.0
 RETRIABLE_STATUS = {500, 502, 503, 504}
 RETRIABLE_EXCEPTIONS = (httplib2.HttpLib2Error, ConnectionError, TimeoutError, OSError)
 QUOTA_REASONS = {"quotaExceeded", "uploadLimitExceeded", "dailyLimitExceeded", "rateLimitExceeded"}
+MIN_SCHEDULE_LEAD = timedelta(minutes=15)  # publishAt must still be in the future when the upload finishes
 
 
 class QuotaExceededError(RuntimeError):
@@ -199,10 +203,37 @@ def _clean_tags(tags: list[str]) -> list[str]:
     return out
 
 
-def build_body(req: VideoRequest) -> dict[str, Any]:
+def _schedule(req: VideoRequest, privacy: str, now: datetime) -> str | None:
+    """status.publishAt for a calendar episode, or None when it can't be scheduled."""
+    try:
+        when = datetime.fromisoformat(req.publish_at)
+    except ValueError:
+        log.warning("%s: invalid publish_at %r; not scheduling", req.topic_id, req.publish_at)
+        return None
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=timezone.utc)
+    if privacy != "private":
+        log.warning("%s: YouTube only schedules private videos; not scheduling", req.topic_id)
+        return None
+    if when <= now + MIN_SCHEDULE_LEAD:
+        log.warning("%s: slot %s has passed; uploading private without a schedule", req.topic_id, req.publish_at)
+        return None
+    return when.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def build_body(req: VideoRequest, schedule_publish: bool = False, now: datetime | None = None) -> dict[str, Any]:
     privacy = req.privacy_status or "private"
     if privacy not in ALLOWED_PRIVACY:
         raise UploadError(f"refusing privacyStatus={privacy!r}; only {ALLOWED_PRIVACY} are allowed")
+    status: dict[str, Any] = {
+        "privacyStatus": privacy,
+        "selfDeclaredMadeForKids": bool(req.made_for_kids),
+        "containsSyntheticMedia": True,  # AI-generated: always disclose
+    }
+    if schedule_publish and req.publish_at:
+        publish_at = _schedule(req, privacy, now or datetime.now(timezone.utc))
+        if publish_at:
+            status["publishAt"] = publish_at  # private until then; YouTube publishes it at that time
     return {
         "snippet": {
             "title": _clean_title(req.title or req.subject),
@@ -210,11 +241,7 @@ def build_body(req: VideoRequest) -> dict[str, Any]:
             "tags": _clean_tags(req.tags),
             "categoryId": str(req.category_id),
         },
-        "status": {
-            "privacyStatus": privacy,
-            "selfDeclaredMadeForKids": bool(req.made_for_kids),
-            "containsSyntheticMedia": True,  # AI-generated: always disclose
-        },
+        "status": status,
     }
 
 
@@ -264,14 +291,21 @@ def resumable_upload(insert_request, sleep: Callable[[float], None] = time.sleep
     return response
 
 
-def upload_video(service, mp4: Path, req: VideoRequest, sleep: Callable[[float], None] = time.sleep) -> str:
-    body = build_body(req)
+def upload_video(service, mp4: Path, req: VideoRequest, sleep: Callable[[float], None] = time.sleep,
+                 schedule_publish: bool = False) -> str:
+    body = build_body(req, schedule_publish)
     media = MediaFileUpload(str(mp4), mimetype="video/mp4", chunksize=CHUNK_SIZE, resumable=True)
     insert_request = service.videos().insert(part="snippet,status", body=body, media_body=media)
     response = resumable_upload(insert_request, sleep=sleep)
-    log.info("uploaded %s -> https://youtu.be/%s (privacy=%s)", mp4.name, response["id"],
-             body["status"]["privacyStatus"])
+    log.info("uploaded %s -> https://youtu.be/%s (privacy=%s%s)", mp4.name, response["id"],
+             body["status"]["privacyStatus"],
+             f", publishes {body['status']['publishAt']}" if "publishAt" in body["status"] else "")
     return response["id"]
+
+
+def already_uploaded(output_dir: Path) -> set[str]:
+    """Topic ids with an output/uploaded/ sidecar (restored from the automation-state branch in CI)."""
+    return {p.stem for p in review.stage_dir(output_dir, review.UPLOADED).glob("*.json")}
 
 
 def run(dry_run: bool = False, settings: config.Settings | None = None,
@@ -282,6 +316,11 @@ def run(dry_run: bool = False, settings: config.Settings | None = None,
     ledger.log_budget()
 
     items = review.load_approved(settings.output_dir)
+    done = already_uploaded(settings.output_dir)
+    if any(r.request.topic_id in done for _, r in items):
+        log.warning("skipping approved item(s) already uploaded: %s",
+                    ", ".join(r.request.topic_id for _, r in items if r.request.topic_id in done))
+        items = [(s, r) for s, r in items if r.request.topic_id not in done]
     if not items:
         log.info("nothing in %s/ - approve items with `make review` first", review.APPROVED)
         return []
@@ -293,7 +332,7 @@ def run(dry_run: bool = False, settings: config.Settings | None = None,
             log.warning("daily upload budget reached; %d approved item(s) left for tomorrow", len(items) - i)
             break
         mp4 = review.video_file(sidecar, result)
-        body = build_body(result.request)  # validates privacy even in dry-run
+        body = build_body(result.request, settings.youtube_schedule_publish)  # validates privacy even in dry-run
         if dry_run:
             log.info("DRY-RUN: would upload %s (%d bytes) with %s", mp4.name, mp4.stat().st_size,
                      json.dumps(body, ensure_ascii=False))
@@ -301,10 +340,11 @@ def run(dry_run: bool = False, settings: config.Settings | None = None,
                      review.UPLOADED)
             continue
         if service is None:
-            service = build_service(get_credentials(settings))
+            service = build_service(get_credentials(settings, interactive=not os.getenv("CI")))  # no browser in CI
         ledger.record_attempt()
         try:
-            video_id = upload_video(service, mp4, result.request)
+            video_id = upload_video(service, mp4, result.request,
+                                    schedule_publish=settings.youtube_schedule_publish)
         except QuotaExceededError as exc:
             log.error("%s - stopping for today", exc)
             break
@@ -336,7 +376,13 @@ def main(argv: list[str] | None = None) -> int:
         get_credentials(settings)
         return 0
     run(dry_run=args.dry_run, settings=settings)
-    return 0
+    if args.dry_run:
+        return 0
+    done = already_uploaded(settings.output_dir)
+    left = [r.request.topic_id for _, r in review.load_approved(settings.output_dir) if r.request.topic_id not in done]
+    if left:
+        log.error("approved but not uploaded: %s", ", ".join(left))
+    return 1 if left else 0
 
 
 if __name__ == "__main__":

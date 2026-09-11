@@ -7,7 +7,7 @@ from orchestrator import config, render_config
 from orchestrator.config import REPO_ROOT
 from orchestrator.models import VideoRequest
 
-MODULES = ["config", "models", "generate", "upload", "review", "scheduler", "render_config"]
+MODULES = ["config", "models", "generate", "upload", "review", "scheduler", "render_config", "content_calendar"]
 
 
 @pytest.mark.parametrize("name", MODULES)

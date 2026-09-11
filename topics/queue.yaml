@@ -16,6 +16,10 @@ defaults:
   voice_name: "en-US-AndrewMultilingualNeural-Male" # free Edge TTS. Also: en-US-BrianMultilingualNeural-Male, en-US-AvaMultilingualNeural-Female
   video_language: "en"
   paragraph_number: 1
+  video_clip_duration: 3 # seconds per stock clip; quick cuts hold Shorts viewers
+  voice_rate: 1.1 # narration speed (1.0 = normal)
+  match_materials_to_script: true # one clip per video term, played in script order (engine option)
+  video_concat_mode: sequential
   video_script_prompt: "End the script with exactly this sentence: Subscribe to Plot Armor Facts for more videos."
   bgm_type: "" # no background music (bundled songs removed)
   privacy_status: private # private | unlisted  ("public" is refused)
@@ -37,18 +41,7 @@ defaults:
   stroke_width: 5.0
 
 topics:
-  # --- comics lore ---
-  - id: batman-origin-facts
-    subject: "5 lesser-known facts about Batman's comic book origin"
-    video_terms: "night city skyline, rain alley, bat silhouette, gothic building, lightning storm"
-    tags: [shorts, plotarmorfacts, dc, batman, comics]
-
-  - id: venom-symbiote-history
-    subject: "The history of the Venom symbiote in Marvel comics"
-    video_terms: "black liquid, ink in water, dark city night, alien texture, rooftop at night"
-    tags: [shorts, plotarmorfacts, marvel, venom, comics]
-
-  # --- science behind the powers ---
+  # --- science ---
   - id: superhero-landing-physics
     subject: "Could a human survive a superhero landing? The physics explained"
     video_terms: "person jumping, slow motion impact, city rooftop, concrete crack, parkour"

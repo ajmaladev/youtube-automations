@@ -14,6 +14,8 @@ config/config.toml
 
 # --- Generated media, sidecars, quota ledger, queue state ---
 output/
+.state/
+topics/calendar/drafts/
 
 # --- Python ---
 __pycache__/

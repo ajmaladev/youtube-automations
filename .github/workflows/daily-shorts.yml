@@ -1,0 +1,188 @@
+name: Daily Shorts
+
+# Renders the next day's 3 content-calendar episodes, waits for approval on the "youtube" environment, then
+# uploads them private with a scheduled publish time (p1 morning, p2 afternoon, p3 night).
+# One-time setup: README -> Usage -> "Step 8: Run it on GitHub Actions".
+
+on:
+  schedule:
+    - cron: "0 16 * * *" # 16:00 UTC: the evening before the episodes' day in Europe
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "Calendar day to render (YYYY-MM-DD). Empty = tomorrow."
+        required: false
+        default: ""
+      upload:
+        description: "Upload to YouTube after approval"
+        type: boolean
+        default: true
+
+concurrency:
+  group: daily-shorts
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash # -eo pipefail
+
+env:
+  CALENDAR_TIMEZONE: ${{ vars.CALENDAR_TIMEZONE || 'Europe/London' }}
+
+jobs:
+  render:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    permissions:
+      contents: read
+      packages: write # caches the video engine image in GHCR
+    outputs:
+      day: ${{ steps.day.outputs.day }}
+      skip: ${{ steps.day.outputs.skip }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check secrets
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+        run: |
+          if [ -z "$PEXELS_API_KEY" ]; then
+            echo "::error::Add the PEXELS_API_KEY repository secret (Settings -> Secrets and variables -> Actions)"
+            exit 1
+          fi
+
+      - uses: astral-sh/setup-uv@v10
+
+      - name: Install
+        run: uv sync --locked
+
+      - name: Tests and calendar rules
+        run: |
+          uv run pytest
+          uv run python -m orchestrator.content_calendar validate
+
+      - name: Pick the day
+        id: day
+        env:
+          INPUT_DATE: ${{ inputs.date }}
+        run: |
+          day="${INPUT_DATE:-$(TZ="$CALENDAR_TIMEZONE" date -d tomorrow +%F)}"
+          if ! [[ "$day" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            echo "::error::date must be YYYY-MM-DD, got '$day'"
+            exit 1
+          fi
+          echo "day=$day" >> "$GITHUB_OUTPUT"
+          bash scripts/ci/state.sh restore
+          episodes=$(uv run python -m orchestrator.content_calendar show --date "$day")
+          if grep -q "^no calendar episodes" <<< "$episodes"; then
+            echo "::warning::No content-calendar episodes for $day. Add topics/calendar/${day:0:7}.json."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          elif [ "$(find output/uploaded -name "$day-*.json" | wc -l)" -ge 3 ]; then
+            echo "All episodes for $day are already uploaded." >> "$GITHUB_STEP_SUMMARY"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            { echo "### Rendering $day"; echo '```'; printf '%s\n' "$episodes"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Free disk space
+        if: steps.day.outputs.skip == 'false'
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
+          df -h /
+
+      - name: Video engine image
+        id: engine
+        if: steps.day.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUSH_ENGINE_IMAGE: "true"
+        run: |
+          echo "$GH_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+          image=$(bash scripts/ci/engine-image.sh | tail -n 1)
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+
+      - name: Start the video engine
+        if: steps.day.outputs.skip == 'false'
+        env:
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          IMAGE: ${{ steps.engine.outputs.image }}
+        run: bash scripts/ci/start-engine.sh "$IMAGE"
+
+      - name: Render ${{ steps.day.outputs.day }}
+        if: steps.day.outputs.skip == 'false'
+        env:
+          DAY: ${{ steps.day.outputs.day }}
+          PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          OLLAMA_HOST: http://127.0.0.1:11434 # required by the config check; calendar scripts never call an LLM
+          ENGINE_BASE_URL: http://127.0.0.1:8080
+          AUTO_SERIES: "false"
+          GENERATE_ATTEMPTS: "3"
+          GENERATE_RETRY_DELAY_S: "60"
+          ENGINE_GENERATE_TIMEOUT_S: "2700"
+          VERIFY_VIDEOS: "true"
+        run: uv run python -m orchestrator.generate --date "$DAY"
+
+      - name: Engine log
+        if: failure() && steps.engine.outcome == 'success'
+        run: docker logs --tail 400 yta-engine
+
+      - name: Save the videos
+        if: steps.day.outputs.skip == 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: shorts-${{ steps.day.outputs.day }}
+          path: output/pending/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+  upload:
+    needs: render
+    if: needs.render.outputs.skip == 'false' && (github.event_name == 'schedule' || inputs.upload)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: youtube # add yourself as a required reviewer to approve each day's videos before upload
+    permissions:
+      contents: write # records uploads on the automation-state branch
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v10
+
+      - name: Install
+        run: uv sync --locked
+
+      - name: Download the approved videos
+        uses: actions/download-artifact@v8
+        with:
+          name: shorts-${{ needs.render.outputs.day }}
+          path: output/approved/
+
+      - name: YouTube credentials
+        env:
+          CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET_JSON }}
+          TOKEN: ${{ secrets.YOUTUBE_TOKEN_JSON }}
+        run: |
+          if [ -z "$CLIENT_SECRET" ] || [ -z "$TOKEN" ]; then
+            echo "::error::Add the YOUTUBE_CLIENT_SECRET_JSON and YOUTUBE_TOKEN_JSON repository secrets"
+            exit 1
+          fi
+          mkdir -p .credentials
+          chmod 700 .credentials
+          printf '%s' "$CLIENT_SECRET" > .credentials/client_secret.json
+          printf '%s' "$TOKEN" > .credentials/youtube.token.json
+          chmod 600 .credentials/*.json
+
+      - name: Restore upload history
+        run: bash scripts/ci/state.sh restore
+
+      - name: Upload
+        env:
+          YOUTUBE_CLIENT_SECRETS_PATH: .credentials/client_secret.json
+          YOUTUBE_SCHEDULE_PUBLISH: "true"
+        run: uv run python -m orchestrator.upload
+
+      - name: Save upload history
+        if: always()
+        run: bash scripts/ci/state.sh save
