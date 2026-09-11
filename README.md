@@ -14,7 +14,7 @@
 </p>
 
 **Plot Armor Facts** plans a fresh 3-part story series every day (true survival, nature, history and science stories), researches it on the web, writes and fact-checks the scripts, and renders them into vertical videos with voice-over, subtitles and stock footage.
-**Nothing is uploaded until you approve it**, and every upload goes up **private** with the AI-content disclosure switched on.
+On your PC you approve each video before it uploads; on GitHub Actions it renders, checks and uploads every day **with no approval needed**. Every upload goes up **private** (optionally with a scheduled publish time) with the AI-content disclosure switched on.
 
 [Features](#-features) •
 [How it works](#-how-it-works) •
@@ -50,7 +50,7 @@
 | | Feature | What it does |
 |:--:|---|---|
 | 💡 | **Automatic topics** | The AI picks a new series idea every day from the categories you choose. |
-| ☁️ | **GitHub Actions** | Runs daily in the cloud: renders, checks every video, waits for your approval, schedules the uploads. |
+| ☁️ | **GitHub Actions** | Runs daily in the cloud: renders, checks every video and schedules the uploads, with no approval needed. |
 | 🎞️ | **Footage that matches** | One stock clip per ~8 spoken words, in script order, previewed before rendering with `footage storyboard`. |
 | 🗓️ | **/plan-month** | A Claude Code command that researches, writes and checks next month's calendar for you. |
 | 📅 | **Content calendar** | Or pre-write a whole month in `topics/calendar/`: the pipeline renders and schedules it and never invents a topic for those days. |
@@ -615,8 +615,7 @@ Your PC must be on, with Docker Desktop running, at that time.
 `.github/workflows/daily-shorts.yml` runs every day at 16:00 UTC:
 
 1. **Render:** runs the tests and calendar checks, starts the video engine (pinned version, cached in GitHub's container registry), renders tomorrow's 3 episodes, checks every MP4, and retries a failed render up to 3 times.
-2. **Approve:** the run waits on the `youtube` environment. Download the `shorts-<date>` artifact from the run page, watch the videos, then click **Review deployments → Approve**.
-3. **Upload:** uploads them private with scheduled publish times (09:00, 15:00 and 21:00 in the calendar's timezone), and records every upload on the `automation-state` branch so a re-run never posts twice.
+2. **Upload:** as soon as all 3 videos pass the checks, uploads them automatically, private with scheduled publish times (09:00, 15:00 and 21:00 in the calendar's timezone), and records every upload on the `automation-state` branch so a re-run never posts twice. No approval is needed; the videos stay downloadable from the run page for 14 days. If any video fails to render, nothing from that day is uploaded.
 
 One-time setup:
 
@@ -630,9 +629,8 @@ One-time setup:
    gh secret set YOUTUBE_CLIENT_SECRET_JSON < .credentials/client_secret.json
    gh secret set YOUTUBE_TOKEN_JSON < .credentials/youtube.token.json
    ```
-3. **Settings → Environments → New environment** named `youtube`, and add yourself under **Required reviewers**. Without a reviewer, uploads start as soon as the render finishes.
-4. *(Optional)* Add a repository variable `CALENDAR_TIMEZONE` if your calendar's `timezone` isn't `Europe/London`.
-5. Test it: **Actions → Daily Shorts → Run workflow**, with a date such as `2026-10-01`.
+3. *(Optional)* Add a repository variable `CALENDAR_TIMEZONE` if your calendar's `timezone` isn't `Europe/London`.
+4. Test it: **Actions → Daily Shorts → Run workflow**, with a date such as `2026-10-01`.
 
 > [!IMPORTANT]
 > - Set the Google OAuth consent screen to **In production**, or the `YOUTUBE_TOKEN_JSON` login expires after 7 days.

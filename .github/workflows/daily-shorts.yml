@@ -1,7 +1,7 @@
 name: Daily Shorts
 
-# Renders the next day's 3 content-calendar episodes, waits for approval on the "youtube" environment, then
-# uploads them private with a scheduled publish time (p1 morning, p2 afternoon, p3 night).
+# Renders the next day's 3 content-calendar episodes, checks every video, then uploads them automatically -
+# private, with a scheduled publish time (p1 morning, p2 afternoon, p3 night). No approval step.
 # One-time setup: README -> Usage -> "Step 8: Run it on GitHub Actions".
 
 on:
@@ -14,7 +14,7 @@ on:
         required: false
         default: ""
       upload:
-        description: "Upload to YouTube after approval"
+        description: "Upload to YouTube after rendering"
         type: boolean
         default: true
 
@@ -142,7 +142,6 @@ jobs:
     if: needs.render.outputs.skip == 'false' && (github.event_name == 'schedule' || inputs.upload)
     runs-on: ubuntu-24.04
     timeout-minutes: 60
-    environment: youtube # add yourself as a required reviewer to approve each day's videos before upload
     permissions:
       contents: write # records uploads on the automation-state branch
     steps:
@@ -153,7 +152,7 @@ jobs:
       - name: Install
         run: uv sync --locked
 
-      - name: Download the approved videos
+      - name: Download the checked videos # every video already passed the render checks
         uses: actions/download-artifact@v8
         with:
           name: shorts-${{ needs.render.outputs.day }}
