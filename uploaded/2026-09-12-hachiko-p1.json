@@ -1,6 +1,6 @@
 {
   "request": {
-    "topic_id": "2026-10-01-hachiko-p1",
+    "topic_id": "2026-09-12-hachiko-p1",
     "subject": "The Dog Who Never Stopped Waiting - part 1: The Professor Who Never Came Home",
     "title": "The Dog Who Never Stopped Waiting (Part 1/3)",
     "description": "In 1925, a Tokyo professor went to work and never came home. His dog didn't understand. Would your dog wait for you?\n\nPart 1 of 3: The Dog Who Never Stopped Waiting\n\nSources:\nhttps://en.wikipedia.org/wiki/Hachik%C5%8D\nhttps://www.nippon.com/en/japan-glances/jg00137/\nhttps://www.gotokyo.org/en/spot/86/index.html\n\nStock footage: Pexels. Made with AI-assisted narration.\n\n#shorts #truestory",
@@ -19,7 +19,7 @@
     "privacy_status": "private",
     "made_for_kids": false,
     "contains_synthetic_media": true,
-    "publish_at": "2026-10-01T08:00:00Z",
+    "publish_at": "2026-09-12T08:00:00Z",
     "video_aspect": "9:16",
     "voice_name": "en-US-AndrewMultilingualNeural-Male",
     "paragraph_number": 1,
@@ -48,7 +48,7 @@
     }
   },
   "task_id": "05f98f17-1422-41aa-8eb8-0b0da82fbc8b",
-  "video_path": "2026-10-01-hachiko-p1.mp4",
+  "video_path": "2026-09-12-hachiko-p1.mp4",
   "sha256": "0d59d970986869c02f611083d021899e95cb232198094d0602b15902def086d4",
   "script": "This dog waited for his dead owner for almost ten years. Hollywood later turned his story into a Richard Gere movie. His name was Hachiko, an Akita in Tokyo. Every day, he met his owner, Professor Hidesaburo Ueno, at Shibuya Station. Then, in May 1925, Ueno died suddenly at work. He was never coming home. Hachiko had lost his whole world. But nobody could explain that to a dog. And soon, Hachiko went back to the one place Ueno would never return to. Subscribe so you don't miss Part 2.",
   "terms": [
