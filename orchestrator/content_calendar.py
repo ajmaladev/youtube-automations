@@ -225,10 +225,12 @@ def _check_month(doc: dict[str, Any], errors: list[str]) -> None:
     month = str(doc.get("month", ""))
     if re.fullmatch(r"\d{4}-(0[1-9]|1[0-2])", month):
         y, m = map(int, month.split("-"))
-        want = [date(y, m, d).isoformat() for d in range(1, cal.monthrange(y, m)[1] + 1)]
+        days = [date(y, m, d).isoformat() for d in range(1, cal.monthrange(y, m)[1] + 1)]
         got = [s.get("date") for s in series]
+        # a month the calendar starts or ends in may be partial, but never has gaps
+        want = days[days.index(got[0]):days.index(got[-1]) + 1] if got and got[0] in days and got[-1] in days else days
         if got != want:
-            errors.append(f"series must cover every day of {month} once, in order "
+            errors.append(f"series must cover consecutive days of {month} once, in order "
                           f"(missing {sorted(set(want) - set(got))}, extra {sorted(set(got) - set(want))})")
     else:
         errors.append("month must be YYYY-MM")

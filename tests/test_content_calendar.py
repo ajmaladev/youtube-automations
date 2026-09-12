@@ -72,7 +72,7 @@ def test_valid_month_and_single_series_draft_pass(tmp_path):
 
 
 def test_validator_reports_editorial_problems(tmp_path):
-    doc = make_month(october()[:-1])
+    doc = make_month(october()[:15] + october()[16:])
     p1, p2, p3 = doc["series"][0]["episodes"]
     p1["script"] = p1["script"].replace(cc.ENDINGS["p1"], "Follow for more.")
     p2["script"] = p2["script"].replace("In Part 1,", "Earlier,")
@@ -82,7 +82,7 @@ def test_validator_reports_editorial_problems(tmp_path):
         f"{FILLER} {cc.ENDINGS['p1']}", f"What happened next? {cc.ENDINGS['p1']}")
     doc["series"][2]["episodes"][0]["video_terms"][0] = "batman at night"
     errors = "\n".join(cc.validate_file(write(tmp_path, "2026-10.json", doc)))
-    for expected in ["missing ['2026-10-31']", "must end with", "sentence 2 must be a recap",
+    for expected in ["missing ['2026-10-16']", "must end with", "sentence 2 must be a recap",
                      "script has 128 words", "youtube_title must be", "generic cliffhanger", "filmable scenes"]:
         assert expected in errors
 
@@ -106,7 +106,7 @@ def test_marvel_and_dc_content_is_rejected(tmp_path):
 
 def test_cli_validate_exit_codes(tmp_path, capsys):
     good = write(tmp_path, "2026-10.json", make_month(october()))
-    bad = write(tmp_path / "bad", "2026-11.json", make_month(["2026-11-01"], month="2026-11"))
+    bad = write(tmp_path / "bad", "2026-11.json", make_month(["2026-11-01", "2026-11-03"], month="2026-11"))
     assert cc.main(["validate", str(good)]) == 0
     assert cc.main(["validate", str(bad.parent)]) == 1
     assert "error(s)" in capsys.readouterr().out

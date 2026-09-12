@@ -54,8 +54,8 @@
     },
     "series": {
       "type": "array",
-      "description": "Exactly one series per calendar day, sorted by date.",
-      "minItems": 28,
+      "description": "Exactly one series per calendar day (consecutive days; first and last month may be partial), sorted by date.",
+      "minItems": 1,
       "maxItems": 31,
       "items": {
         "$ref": "#/$defs/series"
